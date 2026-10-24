@@ -76,3 +76,7 @@ internal/cookies       encrypted persistent cookie jar
 internal/localfile     serves local images to pages opened from disk
 frontend/              vanilla HTML/CSS/JS (no framework)
 ```
+
+## License
+
+[MIT](LICENSE)
