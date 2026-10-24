@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Markdown Browser</title>
+</head>
+<body>
+<header class="toolbar">
+    <button id="back" title="Back" disabled>&#8592;</button>
+    <button id="forward" title="Forward" disabled>&#8594;</button>
+    <button id="reload" title="Reload" disabled>&#8635;</button>
+    <input id="address" type="text" spellcheck="false" placeholder="Enter a URL" autocomplete="off"/>
+    <div class="menu-wrap">
+        <button id="history" title="History" aria-haspopup="true" aria-expanded="false">&#9662;</button>
+        <div id="history-menu" class="menu" hidden></div>
+    </div>
+    <button id="creds" title="Site credentials" aria-haspopup="dialog">&#128273;</button>
+    <button id="source" title="Show source" disabled>&lt;/&gt;</button>
+</header>
+<main id="content"></main>
+<dialog id="creds-dialog" aria-labelledby="creds-title">
+    <h2 id="creds-title">Site credentials</h2>
+    <p class="note">Stored in your system keychain and sent only to the exact site you enter.</p>
+    <ul id="cred-list"></ul>
+    <form id="cred-form" autocomplete="off">
+        <label>Site <input id="cred-origin" type="text" spellcheck="false" placeholder="https://example.com" required></label>
+        <label>Type
+            <select id="cred-kind">
+                <option value="cookie">Cookies (logged-in session)</option>
+                <option value="bearer">Bearer token</option>
+                <option value="basic">Username &amp; password</option>
+            </select>
+        </label>
+        <div data-kind="cookie">
+            <label>Cookie header <textarea id="cred-cookie" rows="3" spellcheck="false" placeholder="name=value; name2=value2"></textarea></label>
+            <p class="note">Paste the <code>Cookie</code> request header from your browser's dev tools, or import a <code>cookies.txt</code> export for this site:</p>
+            <input id="cred-cookiefile" type="file" accept=".txt,text/plain">
+        </div>
+        <div data-kind="bearer" hidden>
+            <label>Token <input id="cred-token" type="password" spellcheck="false"></label>
+        </div>
+        <div data-kind="basic" hidden>
+            <label>Username <input id="cred-user" type="text" spellcheck="false"></label>
+            <label>Password <input id="cred-pass" type="password"></label>
+        </div>
+        <p id="cred-status" role="status"></p>
+        <div class="dialog-actions">
+            <button type="button" id="cred-clear-cookies" title="Forget cookies that sites have set">Clear saved cookies</button>
+            <span class="spacer"></span>
+            <button type="button" id="cred-close">Close</button>
+            <button type="submit" id="cred-save" class="primary">Save</button>
+        </div>
+    </form>
+</dialog>
+<script src="./src/main.js" type="module"></script>
+</body>
+</html>

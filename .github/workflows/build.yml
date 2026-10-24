@@ -1,0 +1,40 @@
+name: build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            name: macos
+          - os: windows-latest
+            name: windows
+          - os: ubuntu-latest
+            name: linux
+            tags: -tags webkit2_41
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Linux dependencies
+        if: matrix.name == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev gnome-keyring
+      - run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+      # Build first: it creates frontend/dist, which main.go embeds.
+      - run: wails build ${{ matrix.tags }}
+      - run: go vet ./...
+      - run: go test ./...
+      - uses: actions/upload-artifact@v4
+        with:
+          name: markdown-browser-${{ matrix.name }}
+          path: build/bin/*
