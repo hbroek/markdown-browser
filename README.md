@@ -62,6 +62,18 @@ make windows   # cross-compile markdown-browser.exe (works from macOS/Linux)
 Linux needs `libgtk-3-dev` and `libwebkit2gtk-4.1-dev` (and a Secret Service such as gnome-keyring for
 credentials); build with `make linux`. A GitHub Actions workflow builds all three platforms.
 
+## Releases
+
+Push a version tag and GitHub Actions builds macOS (arm64), Windows and Linux, then publishes them on the
+repository's Releases page:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The builds are unsigned: on macOS right-click the app and choose Open; on Windows choose More info, then Run anyway.
+
 ## Layout
 
 ```
