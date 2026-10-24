@@ -130,7 +130,7 @@ func TestIsMarkdown(t *testing.T) {
 
 func TestFilePathFor(t *testing.T) {
 	win, _ := url.Parse("file:///C:/Users/me/a%20b.md")
-	if got := filePathFor("windows", win); got != `C:\Users\me\a b.md` && got != "C:/Users/me/a b.md" {
+	if got := filePathFor("windows", win); got != `C:\Users\me\a b.md` {
 		t.Errorf("windows path = %q", got)
 	}
 	unix, _ := url.Parse("file:///home/me/a%20b.md")

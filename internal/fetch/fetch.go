@@ -124,7 +124,10 @@ func filePathFor(goos string, u *url.URL) string {
 	if goos == "windows" && len(p) >= 3 && p[0] == '/' && p[2] == ':' {
 		p = p[1:] // /C:/x -> C:/x
 	}
-	return filepath.FromSlash(p)
+	if goos == "windows" {
+		p = strings.ReplaceAll(p, "/", `\`)
+	}
+	return p
 }
 
 // Get fetches rawURL with no credentials or cookies.

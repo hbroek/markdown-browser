@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -43,7 +44,7 @@ func TestPersistsAcrossRestartsEncrypted(t *testing.T) {
 	if bytes.Contains(data, []byte("topsecretvalue")) || bytes.Contains(data, []byte("example.com")) {
 		t.Error("cookie file is not encrypted")
 	}
-	if info, _ := os.Stat(path); info.Mode().Perm() != 0o600 {
+	if info, _ := os.Stat(path); runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 { // no Unix modes on Windows
 		t.Errorf("file mode = %v", info.Mode().Perm())
 	}
 

@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"markdown-browser/internal/fetch"
+	"markdown-browser/internal/localfile"
 	"markdown-browser/internal/page"
 )
 
@@ -131,7 +133,8 @@ func TestFallbackLatin1(t *testing.T) {
 
 func TestMarkdownLocalImages(t *testing.T) {
 	out, _, _ := Markdown([]byte("![a](img/a.png) ![b](https://example.com/b.png)"), mustURL("file:///home/u/docs/index.md"))
-	if !strings.Contains(out, `src="/_local?path=%2Fhome%2Fu%2Fdocs%2Fimg%2Fa.png"`) {
+	want := localfile.URL(fetch.FilePath(mustURL("file:///home/u/docs/img/a.png"))) // OS-specific path form
+	if !strings.Contains(out, `src="`+want+`"`) {
 		t.Errorf("local image not routed: %s", out)
 	}
 	if !strings.Contains(out, `src="https://example.com/b.png"`) {
