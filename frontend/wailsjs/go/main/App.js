@@ -14,6 +14,10 @@ export function ClearHistory() {
   return window['go']['main']['App']['ClearHistory']();
 }
 
+export function ClearNetworkLog() {
+  return window['go']['main']['App']['ClearNetworkLog']();
+}
+
 export function Credentials() {
   return window['go']['main']['App']['Credentials']();
 }
@@ -40,6 +44,10 @@ export function ImportCookiesTxt(arg1, arg2) {
 
 export function Navigate(arg1) {
   return window['go']['main']['App']['Navigate'](arg1);
+}
+
+export function NetworkLog() {
+  return window['go']['main']['App']['NetworkLog']();
 }
 
 export function Reload() {

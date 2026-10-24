@@ -16,9 +16,32 @@
         <div id="history-menu" class="menu" hidden></div>
     </div>
     <button id="creds" title="Site credentials" aria-haspopup="dialog">&#128273;</button>
+    <button id="console-toggle" title="Show console (Ctrl/Cmd+J)" aria-pressed="false">&gt;_</button>
     <button id="source" title="Show source" disabled>&lt;/&gt;</button>
 </header>
 <main id="content"></main>
+<footer id="console" hidden>
+    <div id="console-panel" hidden>
+        <div class="console-head">
+            <strong>Network</strong>
+            <span class="note">Cookie and token values are hidden.</span>
+            <span class="spacer"></span>
+            <button type="button" id="console-clear">Clear</button>
+            <button type="button" id="console-collapse">Collapse</button>
+        </div>
+        <div class="console-body">
+            <div id="console-list" role="listbox" aria-label="Requests"></div>
+            <div id="console-detail"></div>
+        </div>
+    </div>
+    <div class="console-barrow">
+        <button type="button" id="console-bar" aria-expanded="false" title="Show request details">
+            <span id="console-count"></span>
+            <span id="console-last"></span>
+        </button>
+        <button type="button" id="console-close" title="Hide console (Ctrl/Cmd+J)">&times;</button>
+    </div>
+</footer>
 <dialog id="creds-dialog" aria-labelledby="creds-title">
     <h2 id="creds-title">Site credentials</h2>
     <p class="note">Stored in your system keychain and sent only to the exact site you enter.</p>

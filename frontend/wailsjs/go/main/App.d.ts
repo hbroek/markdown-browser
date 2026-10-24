@@ -3,12 +3,15 @@
 import {page} from '../models';
 import {auth} from '../models';
 import {history} from '../models';
+import {fetch} from '../models';
 
 export function Back():Promise<page.Page>;
 
 export function ClearCookies():Promise<void>;
 
 export function ClearHistory():Promise<void>;
+
+export function ClearNetworkLog():Promise<void>;
 
 export function Credentials():Promise<Array<auth.Info>>;
 
@@ -23,6 +26,8 @@ export function History():Promise<Array<history.Entry>>;
 export function ImportCookiesTxt(arg1:string,arg2:string):Promise<number>;
 
 export function Navigate(arg1:string):Promise<page.Page>;
+
+export function NetworkLog():Promise<Array<fetch.Entry>>;
 
 export function Reload():Promise<page.Page>;
 

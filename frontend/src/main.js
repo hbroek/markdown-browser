@@ -2,7 +2,8 @@ import './style.css';
 import {Navigate, Reload, Back, Forward, History, ClearHistory, FullHistory} from '../wailsjs/go/main/App';
 import {OnFileDrop} from '../wailsjs/runtime/runtime';
 import * as view from './view.js';
-import {initCredentials, openCredentials} from './creds.js';
+import {initConsole, toggleConsole} from './console.js';
+import {initCredentials, openCredentials, credentialOrigins} from './creds.js';
 
 const $ = (id) => document.getElementById(id);
 const address = $('address');
@@ -20,7 +21,7 @@ function render() {
     content.replaceChildren(
         !p ? view.welcome()
             : p.kind === 'markdown' ? (showSource ? view.source(p) : view.markdown(p))
-            : p.kind === 'fallback' ? view.fallback(p)
+            : p.kind === 'fallback' ? view.fallback(p, (origin) => openCredentials({origin}))
             : view.error(p, () => go(() => Navigate(p.url)), (page) => openCredentials({origin: page.origin, kind: page.authScheme === 'basic' ? 'basic' : page.authScheme === 'bearer' ? 'bearer' : 'cookie'})),
     );
     content.scrollTop = 0;
@@ -35,6 +36,7 @@ function show(p) {
     $('forward').disabled = !p.canForward;
     $('reload').disabled = !p.url;
     render();
+    updateCredentialIndicator();
 }
 
 async function go(action) {
@@ -120,6 +122,7 @@ document.addEventListener('keydown', (e) => {
     if (mod && key === 'l') address.focus();
     else if (mod && key === 'r') { if (current?.url) go(Reload); }
     else if (mod && key === 'u') toggleSource();
+    else if (mod && key === 'j') toggleConsole();
     else if (e.altKey && e.key === 'ArrowLeft' || mod && e.key === '[') { if (!$('back').disabled) go(Back); }
     else if (e.altKey && e.key === 'ArrowRight' || mod && e.key === ']') { if (!$('forward').disabled) go(Forward); }
     else handled = false;
@@ -135,10 +138,20 @@ OnFileDrop((x, y, paths) => {
 function originOf(url) {
     try { return new URL(url).origin; } catch { return ''; }
 }
+// The key button lights up when the current site has a saved credential.
+async function updateCredentialIndicator() {
+    const origin = originOf(current?.url ?? '');
+    const saved = origin && (await credentialOrigins()).has(origin);
+    $('creds').classList.toggle('active', Boolean(saved));
+    $('creds').title = saved ? `Credentials saved for ${origin}` : 'Site credentials';
+}
+
 initCredentials((origin) => {
+    updateCredentialIndicator();
     if (current?.url && originOf(current.url) === originOf(origin)) go(Reload);
 });
 $('creds').addEventListener('click', () => openCredentials({origin: originOf(current?.url ?? '').replace(/^null$/, '')}));
 
+initConsole();
 render();
 address.focus();

@@ -105,3 +105,12 @@ export function initCredentials(savedCallback) {
         say('Saved cookies cleared');
     });
 }
+
+/** Origins that have a saved credential, as URL.origin strings. */
+export async function credentialOrigins() {
+    try {
+        return new Set(((await Credentials()) ?? []).map((c) => c.origin));
+    } catch {
+        return new Set();
+    }
+}

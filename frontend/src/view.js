@@ -6,12 +6,22 @@ function el(tag, props = {}, ...children) {
     return node;
 }
 
+function originOf(url) {
+    try {
+        const o = new URL(url).origin;
+        return o === 'null' || !o.startsWith('http') ? '' : o;
+    } catch {
+        return '';
+    }
+}
+
 export function welcome() {
     const shortcuts = [
         ['Ctrl/Cmd + L', 'Focus the address bar'],
         ['Ctrl/Cmd + R', 'Reload'],
         ['Alt + ← / →', 'Back / forward'],
         ['Ctrl/Cmd + U', 'Toggle markdown source'],
+        ['Ctrl/Cmd + J', 'Show / hide the network console'],
     ];
     return el('section', {className: 'welcome'},
         el('h1', {textContent: 'Markdown Browser'}),
@@ -29,11 +39,14 @@ export function source(p) {
     return el('pre', {className: 'source'}, el('code', {textContent: p.source}));
 }
 
-export function fallback(p) {
+export function fallback(p, onCredentials) {
     const links = p.links ?? [];
+    const origin = originOf(p.url);
     return el('section', {className: 'fallback'},
         el('h1', {textContent: p.title}),
         el('p', {className: 'note', textContent: `No markdown available (${p.contentType || 'unknown type'}). ${links.length} link${links.length === 1 ? '' : 's'} found.`}),
+        origin ? el('p', {className: 'note'}, 'Expected a signed-in page? ',
+            el('a', {href: '#', textContent: `Add credentials for ${origin}`, onclick: (e) => { e.preventDefault(); onCredentials(origin); }})) : '',
         el('ul', {}, ...links.map((l) => el('li', {},
             el('a', {href: l.href, textContent: l.text}),
             l.text === l.href ? '' : el('span', {className: 'href', textContent: l.href}),

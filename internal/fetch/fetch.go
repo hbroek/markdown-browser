@@ -14,6 +14,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"markdown-browser/internal/auth"
 )
 
 const (
@@ -43,15 +45,19 @@ type Authorizer interface {
 
 // Fetcher loads documents, sending saved credentials and cookies.
 type Fetcher struct {
+	// Log records every exchange for the console.
+	Log *Log
+
 	client *http.Client
 	auth   Authorizer
 }
 
 // NewFetcher returns a Fetcher. auth and jar may be nil.
 func NewFetcher(auth Authorizer, jar http.CookieJar) *Fetcher {
-	f := &Fetcher{auth: auth}
+	f := &Fetcher{auth: auth, Log: NewLog()}
 	f.client = &http.Client{
-		Jar: jar,
+		Jar:       jar,
+		Transport: &loggingTransport{base: http.DefaultTransport, log: f.Log},
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) >= 10 {
 				return errors.New("stopped after 10 redirects")
@@ -88,7 +94,11 @@ func Normalize(input string) (*url.URL, error) {
 		return fileURL(s), nil
 	}
 	if !strings.Contains(s, "://") {
-		s = "https://" + s
+		scheme := "https://"
+		if h, err := url.Parse("//" + s); err == nil && auth.IsLoopbackHost(h.Hostname()) {
+			scheme = "http://" // local servers rarely have TLS
+		}
+		s = scheme + s
 	}
 	u, err := url.Parse(s)
 	if err != nil {
@@ -142,7 +152,7 @@ func (f *Fetcher) Get(ctx context.Context, rawURL string) (*Result, error) {
 		return nil, err
 	}
 	if u.Scheme == "file" {
-		return getFile(u)
+		return f.getFile(u)
 	}
 	return f.getHTTP(ctx, u)
 }
@@ -178,16 +188,21 @@ func (f *Fetcher) getHTTP(ctx context.Context, u *url.URL) (*Result, error) {
 	}, nil
 }
 
-func getFile(u *url.URL) (*Result, error) {
-	f, err := os.Open(FilePath(u))
+func (f *Fetcher) getFile(u *url.URL) (res *Result, err error) {
+	start := time.Now()
+	var size int64
+	defer func() { f.Log.logFile(u.String(), size, start, err) }()
+
+	file, err := os.Open(FilePath(u))
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-	body, err := readCapped(f)
+	defer file.Close()
+	body, err := readCapped(file)
 	if err != nil {
 		return nil, err
 	}
+	size = int64(len(body))
 	ct := mime.TypeByExtension(strings.ToLower(filepath.Ext(u.Path)))
 	if isMarkdownExt(u.Path) {
 		ct = "text/markdown; charset=utf-8"

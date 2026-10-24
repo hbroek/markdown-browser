@@ -14,6 +14,8 @@ title plus link list when a page is not markdown. Go backend, HTML/CSS/JS fronte
 - `http`, `https` and `file://`; drop a `.md` file on the window to open it. Relative links and images work,
   including local images for pages opened from disk
 - **Full history…** in the history menu generates a markdown page of everything you visited
+- A network console (hidden by default; `>_` button or Cmd/Ctrl+J) lists every request with its status code;
+  click the bar to see request and response headers, timing and size. Cookie and token values are hidden
 - Light and dark mode follow the OS
 - Sites that need a login: see below
 
@@ -23,6 +25,7 @@ title plus link list when a page is not markdown. Go backend, HTML/CSS/JS fronte
 | Cmd/Ctrl+R | Reload |
 | Alt+← / Alt+→ (Cmd+[ / Cmd+] on Mac) | Back / forward |
 | Cmd/Ctrl+U | Toggle markdown source |
+| Cmd/Ctrl+J | Show / hide the network console |
 
 ## Sites that need a login
 

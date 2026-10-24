@@ -11,6 +11,8 @@ import (
 	"markdown-browser/internal/fetch"
 	"markdown-browser/internal/history"
 	"markdown-browser/internal/page"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App holds the state shared with the frontend through Wails bindings.
@@ -19,6 +21,7 @@ type App struct {
 	browser *browser.Browser
 	auth    *auth.Manager
 	jar     *cookies.Jar
+	fetcher *fetch.Fetcher
 }
 
 func NewApp() *App {
@@ -39,12 +42,15 @@ func NewApp() *App {
 		auth: auth.NewManager(keychain, file("credentials.json")),
 		jar:  cookies.New(keychain, file("cookies.bin")),
 	}
-	a.browser = browser.New(history.Open(file("history.json")), fetch.NewFetcher(a.auth, a.jar))
+	a.fetcher = fetch.NewFetcher(a.auth, a.jar)
+	a.browser = browser.New(history.Open(file("history.json")), a.fetcher)
 	return a
 }
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	// Push each request to the console as it completes.
+	a.fetcher.Log.OnEntry = func(e fetch.Entry) { runtime.EventsEmit(ctx, "net", e) }
 }
 
 func (a *App) Navigate(url string) page.Page { return a.browser.Navigate(a.ctx, url) }
@@ -74,3 +80,8 @@ func (a *App) ImportCookiesTxt(origin, text string) (int, error) {
 
 // ClearCookies forgets the cookies that sites have set.
 func (a *App) ClearCookies() { a.jar.Clear() }
+
+// NetworkLog returns the recent requests shown in the console.
+func (a *App) NetworkLog() []fetch.Entry { return a.fetcher.Log.Entries() }
+
+func (a *App) ClearNetworkLog() { a.fetcher.Log.Clear() }

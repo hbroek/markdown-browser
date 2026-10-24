@@ -113,12 +113,17 @@ func Allowed(origin string) bool {
 	if u.Scheme == "https" {
 		return true
 	}
-	host := u.Hostname()
+	return u.Scheme == "http" && IsLoopbackHost(u.Hostname())
+}
+
+// IsLoopbackHost reports whether host is localhost, *.localhost or a loopback IP.
+func IsLoopbackHost(host string) bool {
+	host = strings.ToLower(host)
 	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
-		return u.Scheme == "http"
+		return true
 	}
 	ip := net.ParseIP(host)
-	return u.Scheme == "http" && ip != nil && ip.IsLoopback()
+	return ip != nil && ip.IsLoopback()
 }
 
 func secretName(origin string) string { return "cred:" + origin }

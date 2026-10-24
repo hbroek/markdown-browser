@@ -41,6 +41,80 @@ export namespace auth {
 
 }
 
+export namespace fetch {
+	
+	export class Header {
+	    name: string;
+	    value: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Header(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.value = source["value"];
+	    }
+	}
+	export class Entry {
+	    id: number;
+	    // Go type: time
+	    time: any;
+	    method: string;
+	    url: string;
+	    status: number;
+	    statusText: string;
+	    proto: string;
+	    contentType: string;
+	    durationMs: number;
+	    bytes: number;
+	    reqHeaders: Header[];
+	    respHeaders: Header[];
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Entry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.time = this.convertValues(source["time"], null);
+	        this.method = source["method"];
+	        this.url = source["url"];
+	        this.status = source["status"];
+	        this.statusText = source["statusText"];
+	        this.proto = source["proto"];
+	        this.contentType = source["contentType"];
+	        this.durationMs = source["durationMs"];
+	        this.bytes = source["bytes"];
+	        this.reqHeaders = this.convertValues(source["reqHeaders"], Header);
+	        this.respHeaders = this.convertValues(source["respHeaders"], Header);
+	        this.error = source["error"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace history {
 	
 	export class Entry {
