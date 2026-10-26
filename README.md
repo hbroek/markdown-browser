@@ -75,7 +75,26 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The builds are unsigned: on macOS right-click the app and choose Open; on Windows choose More info, then Run anyway.
+The macOS build is signed and notarized. The Windows build is unsigned: choose More info, then Run anyway.
+
+### Signing releases (macOS)
+
+Locally, with a "Developer ID Application" certificate in your keychain:
+
+```sh
+xcrun notarytool store-credentials markdown-browser --apple-id <id> --team-id <team>   # once
+make notarize
+```
+
+For the release workflow, add these repository secrets (Settings > Secrets and variables > Actions):
+
+| Secret | Value |
+| --- | --- |
+| `MACOS_CERT_P12` | the Developer ID Application certificate exported as `.p12`, base64-encoded (`base64 -i cert.p12 \| pbcopy`) |
+| `MACOS_CERT_PASSWORD` | the password you set when exporting the `.p12` |
+| `APPLE_ID` | your Apple ID email |
+| `APPLE_APP_PASSWORD` | an app-specific password from appleid.apple.com |
+| `APPLE_TEAM_ID` | your 10-character team ID |
 
 ## Layout
 
