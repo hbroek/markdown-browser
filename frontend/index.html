@@ -26,6 +26,7 @@
         <div class="panel-head">
             <strong>Bookmarks</strong>
             <span class="spacer"></span>
+            <button type="button" id="storage-open" title="Where bookmarks are stored" aria-haspopup="dialog">&#9881;</button>
             <button type="button" id="folder-new" title="New folder">New folder</button>
             <button type="button" id="bookmarks-close" title="Hide bookmarks (Ctrl/Cmd+B)">&times;</button>
         </div>
@@ -123,6 +124,36 @@
             <button type="button" id="folder-delete" class="danger" hidden>Delete</button>
             <span class="spacer"></span>
             <button type="button" id="folder-cancel">Cancel</button>
+            <button type="submit" class="primary">Save</button>
+        </div>
+    </form>
+</dialog>
+<dialog id="storage-dialog" aria-labelledby="storage-title">
+    <h2 id="storage-title">Bookmark storage</h2>
+    <form id="storage-form" autocomplete="off">
+        <label class="radio"><input type="radio" name="storage-backend" value="sqlite"> On this computer</label>
+        <label class="radio"><input type="radio" name="storage-backend" value="linkagogo"> LinkaGoGo</label>
+        <div id="storage-lgg" hidden>
+            <label>API key
+                <input id="storage-key" type="password" spellcheck="false" placeholder="lgg_&hellip;">
+            </label>
+            <p class="note">Create one under Account Settings &rarr; API Keys on linkagogo.com (needs a Plus or Premium plan).
+                It is kept in your system keychain, never in a file.</p>
+            <div class="dialog-actions">
+                <button type="button" id="storage-load">Load my folders</button>
+                <span id="storage-connected" class="note" hidden>A key is already saved.</span>
+            </div>
+            <label>Folder for this app's bookmarks
+                <select id="storage-root" disabled></select>
+            </label>
+            <label id="storage-new-wrap" hidden>New folder name <input id="storage-new" type="text" value="Markdown Browser"></label>
+            <p class="note">Only this folder and what is inside it is shown or changed; the rest of your account is left alone.</p>
+        </div>
+        <p class="note">Switching does not move existing bookmarks. To bring them along, export them first, switch, then import.</p>
+        <p id="storage-status" role="status"></p>
+        <div class="dialog-actions">
+            <span class="spacer"></span>
+            <button type="button" id="storage-cancel">Cancel</button>
             <button type="submit" class="primary">Save</button>
         </div>
     </form>

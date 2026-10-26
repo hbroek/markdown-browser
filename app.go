@@ -5,12 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"markdown-browser/internal/auth"
 	"markdown-browser/internal/bookmarks"
+	"markdown-browser/internal/bookmarks/linkagogo"
 	_ "markdown-browser/internal/bookmarks/sqlite"
 	"markdown-browser/internal/browser"
 	"markdown-browser/internal/cookies"
@@ -30,8 +33,12 @@ type App struct {
 	jar     *cookies.Jar
 	fetcher *fetch.Fetcher
 
+	bmMu         sync.RWMutex
 	bookmarks    bookmarks.Store // nil when the backend failed to open
 	bookmarksErr error
+	settings     settings.Settings
+	settingsPath string
+	lggURL       string // LinkaGoGo API address; empty is the real one (tests set it)
 }
 
 func NewApp() *App {
@@ -55,8 +62,9 @@ func NewApp() *App {
 	a.fetcher = fetch.NewFetcher(a.auth, a.jar)
 	a.browser = browser.New(history.Open(file("history.json")), a.fetcher)
 
-	cfg := settings.Load(file("settings.json"), dir)
-	a.bookmarks, a.bookmarksErr = bookmarks.Open(cfg.Bookmarks.Backend, cfg.Bookmarks.Config)
+	a.settingsPath = file("settings.json")
+	a.settings = settings.Load(a.settingsPath, dir)
+	a.bookmarks, a.bookmarksErr = bookmarks.Open(a.settings.Bookmarks.Backend, a.settings.Bookmarks.Config, bookmarks.Deps{Authorize: a.auth.Apply})
 	a.browser.SetSearcher(a.searchPage)
 	return a
 }
@@ -104,6 +112,8 @@ func (a *App) ClearNetworkLog() { a.fetcher.Log.Clear() }
 // instead of stopping the browser from starting.
 
 func (a *App) store() (bookmarks.Store, error) {
+	a.bmMu.RLock()
+	defer a.bmMu.RUnlock()
 	if a.bookmarks == nil {
 		return nil, fmt.Errorf("bookmarks unavailable: %w", a.bookmarksErr)
 	}
@@ -294,4 +304,148 @@ func (a *App) ExportBookmarks(format string) (string, error) {
 		return "", err
 	}
 	return path, os.WriteFile(path, []byte(out), 0o644)
+}
+
+// --- bookmark storage settings ---
+
+// BookmarkSettings describes where bookmarks are kept.
+type BookmarkSettings struct {
+	Backend   string `json:"backend"`   // "sqlite" or "linkagogo"
+	Root      string `json:"root"`      // LinkaGoGo folder used as the top level; "" is the whole account
+	Connected bool   `json:"connected"` // a LinkaGoGo API key is saved
+	Error     string `json:"error"`     // why the current storage is unavailable, if it is
+}
+
+func (a *App) BookmarkSettings() BookmarkSettings {
+	a.bmMu.RLock()
+	defer a.bmMu.RUnlock()
+	out := BookmarkSettings{Backend: a.settings.Bookmarks.Backend, Root: a.settings.Bookmarks.Config["root"]}
+	if a.bookmarksErr != nil {
+		out.Error = a.bookmarksErr.Error()
+	}
+	origin := linkagogoOrigin(a.lggURL)
+	for _, c := range a.auth.List() {
+		if c.Origin == origin && c.Kind == auth.Bearer {
+			out.Connected = true
+		}
+	}
+	return out
+}
+
+func linkagogoOrigin(apiURL string) string {
+	s, err := linkagogo.New(bookmarks.Config{"url": apiURL}, bookmarks.Deps{})
+	if err != nil {
+		return ""
+	}
+	return s.Origin()
+}
+
+// linkagogoStore opens a LinkaGoGo store. With apiKey it signs with that key,
+// which is used only for this store and not saved; without, with the saved one.
+func (a *App) linkagogoStore(apiKey, root string) (*linkagogo.Store, error) {
+	apiKey = strings.TrimSpace(apiKey)
+	if strings.ContainsAny(apiKey, " \t\r\n") {
+		return nil, errors.New("the API key must not contain spaces or line breaks")
+	}
+	authorize := a.auth.Apply
+	if apiKey != "" {
+		authorize = func(r *http.Request) { r.Header.Set("Authorization", "Bearer "+apiKey) }
+	}
+	cfg := bookmarks.Config{}
+	if a.lggURL != "" {
+		cfg["url"] = a.lggURL
+	}
+	if root != "" {
+		cfg["root"] = root
+	}
+	return linkagogo.New(cfg, bookmarks.Deps{Authorize: authorize})
+}
+
+// LinkaGoGoFolders lists every folder in the account so one can be chosen as
+// the app's top level. A key typed in the dialog is tried without being saved.
+func (a *App) LinkaGoGoFolders(apiKey string) ([]bookmarks.Folder, error) {
+	s, err := a.linkagogoStore(apiKey, "")
+	if err != nil {
+		return nil, err
+	}
+	return s.RootCandidates(a.bookmarkCtx())
+}
+
+// UseLinkaGoGo keeps bookmarks in LinkaGoGo under the folder rootID ("" is the
+// whole account), or under a new top-level folder called newFolder. The key
+// and folder are tried first; nothing is saved or switched if they fail.
+func (a *App) UseLinkaGoGo(apiKey, rootID, newFolder string) error {
+	ctx := a.bookmarkCtx()
+	trial, err := a.linkagogoStore(apiKey, "")
+	if err != nil {
+		return err
+	}
+	if name := strings.TrimSpace(newFolder); name != "" {
+		f, err := trial.SaveFolder(ctx, bookmarks.Folder{Name: name})
+		if err != nil {
+			return err
+		}
+		rootID = f.ID
+	}
+	if rootID != "" {
+		if trial, err = a.linkagogoStore(apiKey, rootID); err != nil {
+			return err
+		}
+	}
+	if _, err := trial.Folders(ctx); err != nil { // proves the key works and the folder exists
+		return err
+	}
+	if key := strings.TrimSpace(apiKey); key != "" {
+		if _, err := a.auth.Save(auth.Credential{Origin: trial.Origin(), Kind: auth.Bearer, Token: key}); err != nil {
+			return err
+		}
+	}
+
+	cfg := bookmarks.Config{}
+	if rootID != "" {
+		cfg["root"] = rootID
+	}
+	if a.lggURL != "" {
+		cfg["url"] = a.lggURL
+	}
+	return a.switchBookmarks("linkagogo", cfg)
+}
+
+// UseLocalBookmarks goes back to the SQLite file on this computer.
+func (a *App) UseLocalBookmarks() error {
+	cfg := bookmarks.Config{}
+	a.bmMu.RLock()
+	if a.settings.Bookmarks.Backend == "sqlite" {
+		cfg = a.settings.Bookmarks.Config // keep a custom file path
+	}
+	a.bmMu.RUnlock()
+	return a.switchBookmarks("sqlite", cfg)
+}
+
+// switchBookmarks opens the backend, saves the choice and starts using it.
+func (a *App) switchBookmarks(backend string, cfg bookmarks.Config) error {
+	next := settings.Settings{Bookmarks: settings.Backend{Backend: backend, Config: cfg}}
+	dir := ""
+	if a.settingsPath != "" {
+		dir = filepath.Dir(a.settingsPath)
+	}
+	resolved := settings.Resolve(next, dir)
+	store, err := bookmarks.Open(resolved.Bookmarks.Backend, resolved.Bookmarks.Config, bookmarks.Deps{Authorize: a.auth.Apply})
+	if err != nil {
+		return err
+	}
+	if a.settingsPath != "" {
+		if err := settings.Save(a.settingsPath, next); err != nil {
+			store.Close()
+			return err
+		}
+	}
+	a.bmMu.Lock()
+	old := a.bookmarks
+	a.bookmarks, a.bookmarksErr, a.settings = store, nil, resolved
+	a.bmMu.Unlock()
+	if old != nil {
+		old.Close()
+	}
+	return nil
 }

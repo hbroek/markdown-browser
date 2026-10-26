@@ -2,7 +2,8 @@
 // row to edit it. Folder contents are fetched only while a folder is open.
 // The tree is keyboard driven (arrows, Enter, "e" to edit); see onTreeKey.
 import {BookmarkFolders, BookmarksIn, ImportBookmarks, ExportBookmarks} from '../wailsjs/go/main/App';
-import {openBookmark, openFolder} from './bookmarks.js';
+import {openBookmark, openFolder, setFolderHint} from './bookmarks.js';
+import {openStorage} from './storage.js';
 
 const $ = (id) => document.getElementById(id);
 const panel = $('bookmarks-panel');
@@ -37,9 +38,10 @@ function pencil(label, onClick) {
     return el('button', {type: 'button', className: 'pencil', tabIndex: -1, title: label, onclick: (e) => { e.stopPropagation(); onClick(); }}, el('span', {textContent: '✎'}));
 }
 
-function newRow(key, depth, ...children) {
+function newRow(key, folder, depth, ...children) {
     const row = el('div', {className: 'tree-row', tabIndex: -1}, ...children);
     row.dataset.key = key;
+    row.dataset.folder = folder; // where new items go when this row is selected
     row.setAttribute('role', 'treeitem');
     row.setAttribute('aria-level', String(depth + 1));
     row.style.paddingLeft = `${8 + depth * 16}px`;
@@ -57,7 +59,7 @@ function folderRow(f, depth) {
     const label = el('button', {type: 'button', className: 'tree-label', tabIndex: -1, title: f.name, onclick: toggleFolder},
         el('span', {className: 'caret', textContent: isOpen ? '▾' : '▸'}),
         el('span', {textContent: `📁 ${f.name}`}));
-    const row = newRow(`f:${f.id}`, depth, label, pencil(`Edit folder ${f.name}`, edit));
+    const row = newRow(`f:${f.id}`, f.id, depth, label, pencil(`Edit folder ${f.name}`, edit));
     row.classList.add('folder');
     row.setAttribute('aria-expanded', String(isOpen));
     row.setAttribute('aria-label', f.name);
@@ -77,11 +79,19 @@ function bookmarkRow(b, depth) {
         onclick: go,
     });
     // One level in, so the title lines up under folder names rather than their carets.
-    const row = newRow(`b:${b.id}`, depth + 1, label, pencil(`Edit bookmark ${b.title}`, edit));
+    const row = newRow(`b:${b.id}`, b.folderId, depth + 1, label, pencil(`Edit bookmark ${b.title}`, edit));
     row.setAttribute('aria-label', b.title);
     actions.set(row, {folder: false, activate: go, edit});
     return row;
 }
+
+// The folder of the selected row (the folder itself, or a bookmark's folder),
+// or null when the panel is closed or nothing was selected.
+setFolderHint(() => {
+    if (!visible) return null;
+    const row = rowsOf().find((r) => r.dataset.key === currentKey);
+    return row ? row.dataset.folder : null;
+});
 
 const rowsOf = () => [...tree.querySelectorAll('.tree-row')];
 const levelOf = (row) => Number(row.getAttribute('aria-level'));
@@ -193,7 +203,10 @@ export async function refreshPanel() {
             if (hadFocus) current.focus(); // a rebuild must not drop the keyboard position
         }
     } catch (e) {
-        tree.replaceChildren(el('p', {className: 'error-text tree-note', textContent: String(e)}));
+        tree.replaceChildren(
+            el('p', {className: 'error-text tree-note', textContent: String(e)}),
+            el('p', {className: 'tree-note'}, el('button', {type: 'button', className: 'link-button', textContent: 'Bookmark storage\u2026', onclick: openStorage})),
+        );
     }
 }
 

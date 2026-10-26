@@ -364,3 +364,12 @@ a:hover { color: var(--accent2); }
 #bookmarks-msg { flex-basis: 100%; min-height: 1.2em; font-size: 0.8em; color: var(--muted); overflow-wrap: anywhere; }
 #bookmarks-msg:empty { display: none; }
 #bookmarks-msg.error-text { color: var(--bad); }
+
+label.radio { flex-direction: row; align-items: center; gap: 8px; font-size: 1em; }
+#storage-status { min-height: 1.4em; margin: 0; color: var(--muted); overflow-wrap: anywhere; }
+#storage-status.error-text { color: var(--bad); }
+#storage-lgg { display: flex; flex-direction: column; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bar); }
+#storage-lgg[hidden], #storage-new-wrap[hidden], #storage-connected[hidden] { display: none; }
+#storage-lgg .note { margin: 0; font-size: 0.85em; }
+#storage-new-wrap { display: flex; }
+.link-button { border: 0; background: none; color: var(--link); font: inherit; text-decoration: underline; cursor: pointer; padding: 0; }

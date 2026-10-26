@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	Register("memory", func(Config) (Store, error) { return NewMemory(), nil })
+	Register("memory", func(Config, Deps) (Store, error) { return NewMemory(), nil })
 }
 
 // Memory is a Store that keeps everything in process memory; used by tests

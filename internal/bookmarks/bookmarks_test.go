@@ -14,11 +14,11 @@ func TestMemoryStore(t *testing.T) {
 }
 
 func TestRegistry(t *testing.T) {
-	s, err := bookmarks.Open("memory", nil)
+	s, err := bookmarks.Open("memory", nil, bookmarks.Deps{})
 	if err != nil || s == nil {
 		t.Fatalf("Open(memory) = %v, %v", s, err)
 	}
-	if _, err := bookmarks.Open("nonesuch", nil); err == nil {
+	if _, err := bookmarks.Open("nonesuch", nil, bookmarks.Deps{}); err == nil {
 		t.Error("unknown backend should fail")
 	}
 	found := false

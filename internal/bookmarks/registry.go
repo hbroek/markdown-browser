@@ -3,6 +3,7 @@ package bookmarks
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sort"
 	"sync"
 )
@@ -13,8 +14,14 @@ type Context = context.Context
 // Config holds backend settings (a file path, a server URL, ...).
 type Config map[string]string
 
+// Deps are app services a backend may need. Authorize attaches the user's saved
+// credential to a request (a no-op or nil when there is none).
+type Deps struct {
+	Authorize func(*http.Request)
+}
+
 // Factory opens a backend from its settings.
-type Factory func(cfg Config) (Store, error)
+type Factory func(cfg Config, deps Deps) (Store, error)
 
 var (
 	regMu     sync.Mutex
@@ -29,14 +36,14 @@ func Register(name string, f Factory) {
 }
 
 // Open returns the named backend.
-func Open(name string, cfg Config) (Store, error) {
+func Open(name string, cfg Config, deps Deps) (Store, error) {
 	regMu.Lock()
 	f, ok := factories[name]
 	regMu.Unlock()
 	if !ok {
 		return nil, fmt.Errorf("unknown bookmark backend %q", name)
 	}
-	return f(cfg)
+	return f(cfg, deps)
 }
 
 // Names lists the registered backends.

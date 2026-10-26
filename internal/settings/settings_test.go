@@ -26,3 +26,19 @@ func TestOverridesAndCorruptFile(t *testing.T) {
 		t.Errorf("corrupt file should give defaults: %+v", s)
 	}
 }
+
+func TestSaveRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sub", "settings.json")
+	in := Settings{Bookmarks: Backend{Backend: "linkagogo", Config: map[string]string{"root": "42"}}}
+	if err := Save(path, in); err != nil {
+		t.Fatal(err)
+	}
+	out := Load(path, dir)
+	if out.Bookmarks.Backend != "linkagogo" || out.Bookmarks.Config["root"] != "42" {
+		t.Errorf("round trip = %+v", out)
+	}
+	if _, err := os.Stat(path + ".tmp"); err == nil {
+		t.Error("temp file left behind")
+	}
+}

@@ -29,16 +29,37 @@ func Load(path, dir string) Settings {
 	if data, err := os.ReadFile(path); err == nil {
 		_ = json.Unmarshal(data, &s) // keep what parsed; fall back to defaults for the rest
 	}
+	return Resolve(s, dir)
+}
+
+// Resolve fills in defaults (the SQLite file under dir) without changing s.
+func Resolve(s Settings, dir string) Settings {
+	cfg := bookmarks.Config{}
+	for k, v := range s.Bookmarks.Config {
+		cfg[k] = v
+	}
+	s.Bookmarks.Config = cfg
 	if s.Bookmarks.Backend == "" {
 		s.Bookmarks.Backend = "sqlite"
 	}
-	if s.Bookmarks.Backend == "sqlite" {
-		if s.Bookmarks.Config == nil {
-			s.Bookmarks.Config = bookmarks.Config{}
-		}
-		if s.Bookmarks.Config["path"] == "" {
-			s.Bookmarks.Config["path"] = filepath.Join(dir, "bookmarks.db")
-		}
+	if s.Bookmarks.Backend == "sqlite" && cfg["path"] == "" {
+		cfg["path"] = filepath.Join(dir, "bookmarks.db")
 	}
 	return s
+}
+
+// Save writes s to path, replacing the file in one step.
+func Save(path string, s Settings) error {
+	data, err := json.MarshalIndent(s, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, append(data, '\n'), 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
 }

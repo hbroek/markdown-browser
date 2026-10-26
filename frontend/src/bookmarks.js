@@ -4,6 +4,10 @@ import {BookmarkFolders, SaveBookmark, DeleteBookmark, SaveBookmarkFolder, Delet
 const $ = (id) => document.getElementById(id);
 
 let onChange = () => {};
+let folderHint = () => null;
+
+/** `fn()` gives the folder selected in the panel (or null); new items start there. */
+export function setFolderHint(fn) { folderHint = fn; }
 
 function say(el, text, isError = false) {
     el.textContent = text;
@@ -98,7 +102,7 @@ export async function openBookmark({bookmark = null, url = '', title = ''}) {
     $('bookmark-keywords').value = (bookmark?.keywords ?? []).join(', ');
     $('bookmark-delete').hidden = !bookmark;
     try {
-        await fillFolders($('bookmark-folder'), bookmark ? bookmark.folderId : lastFolder());
+        await fillFolders($('bookmark-folder'), bookmark ? bookmark.folderId : (folderHint() ?? lastFolder()));
     } catch (e) {
         say(bookmarkStatus, String(e), true);
     }
@@ -133,7 +137,7 @@ export async function openFolder({folder = null, parentId = ''} = {}) {
     $('folder-delete').hidden = !folder;
     $('folder-note').hidden = !folder;
     try {
-        await fillFolders($('folder-parent'), folder ? folder.parentId : parentId, folder?.id ?? '');
+        await fillFolders($('folder-parent'), folder ? folder.parentId : (folderHint() ?? parentId), folder?.id ?? '');
     } catch (e) {
         say(folderStatus, String(e), true);
     }

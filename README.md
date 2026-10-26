@@ -51,12 +51,14 @@ title plus link list when a page is not markdown. Go backend, HTML/CSS/JS fronte
     - [Go](<https://go.dev/>) — The Go site
       Keywords: lang, go
   ```
-- Bookmarks live in a local SQLite file, `bookmarks.db`, in the app's config folder. The storage is pluggable
-  (`internal/bookmarks`): to choose a backend or move the file, add a `settings.json` next to it:
-
-  ```json
-  {"bookmarks": {"backend": "sqlite", "config": {"path": "/path/to/bookmarks.db"}}}
-  ```
+- **Where bookmarks are kept** (the ⚙ in the panel header): by default a local SQLite file, `bookmarks.db` in the
+  app's config folder, or a folder of your [LinkaGoGo](https://www.linkagogo.com) account. For LinkaGoGo, create
+  an API key under Account Settings → API Keys (Plus or Premium plan), paste it in the dialog, load your folders and
+  pick the one to use as this app's top level, or let it create one. Only that folder and what is inside it is ever
+  shown, searched or changed. The key goes to your system keychain, never to a file. Switching does not move
+  bookmarks: export, switch, then import. The choice is saved in `settings.json` next to the database
+  (`{"bookmarks": {"backend": "linkagogo", "config": {"root": "<folder id>"}}}`), and further backends plug in
+  through `internal/bookmarks`.
 
 ## Sites that need a login
 
@@ -136,11 +138,12 @@ internal/render        markdown -> sanitized HTML, feeds, link extraction
 internal/browser       ties fetch + render + history together
 internal/nav           back/forward stack
 internal/history       visit log and the generated history page
-internal/bookmarks     bookmark model, Store interface, backends (sqlite/, memory), conformance tests
+internal/bookmarks     bookmark model, Store interface, backends (sqlite/, linkagogo/, memory), conformance tests
 internal/settings      settings.json (bookmark backend choice)
 internal/auth          per-site credentials in the keychain
 internal/cookies       encrypted persistent cookie jar
 internal/localfile     serves local images to pages opened from disk
+tools/lggcheck         read-only probe of the LinkaGoGo API with your key (prints shapes, not data)
 frontend/              vanilla HTML/CSS/JS (no framework)
 ```
 

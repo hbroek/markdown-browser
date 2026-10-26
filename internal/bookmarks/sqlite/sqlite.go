@@ -17,7 +17,7 @@ import (
 )
 
 func init() {
-	bookmarks.Register("sqlite", func(cfg bookmarks.Config) (bookmarks.Store, error) {
+	bookmarks.Register("sqlite", func(cfg bookmarks.Config, _ bookmarks.Deps) (bookmarks.Store, error) {
 		path := cfg["path"]
 		if path == "" {
 			return nil, errors.New("sqlite backend needs a path")

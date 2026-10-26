@@ -242,6 +242,29 @@ export namespace history {
 
 }
 
+export namespace main {
+	
+	export class BookmarkSettings {
+	    backend: string;
+	    root: string;
+	    connected: boolean;
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BookmarkSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.backend = source["backend"];
+	        this.root = source["root"];
+	        this.connected = source["connected"];
+	        this.error = source["error"];
+	    }
+	}
+
+}
+
 export namespace page {
 	
 	export class Link {

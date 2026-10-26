@@ -14,6 +14,10 @@ export function BookmarkFor(arg1) {
   return window['go']['main']['App']['BookmarkFor'](arg1);
 }
 
+export function BookmarkSettings() {
+  return window['go']['main']['App']['BookmarkSettings']();
+}
+
 export function BookmarksIn(arg1) {
   return window['go']['main']['App']['BookmarksIn'](arg1);
 }
@@ -70,6 +74,10 @@ export function ImportCookiesTxt(arg1, arg2) {
   return window['go']['main']['App']['ImportCookiesTxt'](arg1, arg2);
 }
 
+export function LinkaGoGoFolders(arg1) {
+  return window['go']['main']['App']['LinkaGoGoFolders'](arg1);
+}
+
 export function Navigate(arg1) {
   return window['go']['main']['App']['Navigate'](arg1);
 }
@@ -96,4 +104,12 @@ export function SaveCredential(arg1) {
 
 export function SearchBookmarks(arg1) {
   return window['go']['main']['App']['SearchBookmarks'](arg1);
+}
+
+export function UseLinkaGoGo(arg1, arg2, arg3) {
+  return window['go']['main']['App']['UseLinkaGoGo'](arg1, arg2, arg3);
+}
+
+export function UseLocalBookmarks() {
+  return window['go']['main']['App']['UseLocalBookmarks']();
 }

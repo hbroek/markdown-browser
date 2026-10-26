@@ -43,12 +43,12 @@ func TestPersistsAcrossOpens(t *testing.T) {
 }
 
 func TestRegistered(t *testing.T) {
-	s, err := bookmarks.Open("sqlite", bookmarks.Config{"path": ":memory:"})
+	s, err := bookmarks.Open("sqlite", bookmarks.Config{"path": ":memory:"}, bookmarks.Deps{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	s.Close()
-	if _, err := bookmarks.Open("sqlite", nil); err == nil {
+	if _, err := bookmarks.Open("sqlite", nil, bookmarks.Deps{}); err == nil {
 		t.Error("missing path should fail")
 	}
 }

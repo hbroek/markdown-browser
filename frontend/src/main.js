@@ -5,6 +5,7 @@ import * as view from './view.js';
 import {initConsole, toggleConsole} from './console.js';
 import {initBookmarks, openBookmark} from './bookmarks.js';
 import {initPanel, panelShortcut, refreshPanel} from './bookmarkpanel.js';
+import {initStorage} from './storage.js';
 import {initCredentials, openCredentials, credentialOrigins} from './creds.js';
 
 const $ = (id) => document.getElementById(id);
@@ -186,6 +187,7 @@ function openBookmarkDialog() {
 bookmarkBtn.addEventListener('click', openBookmarkDialog);
 initBookmarks(() => { updateBookmarkIndicator(); refreshPanel(); });
 initPanel((url) => go(() => Navigate(url)), updateBookmarkIndicator);
+initStorage(() => { updateBookmarkIndicator(); refreshPanel(); });
 
 initConsole();
 render();
