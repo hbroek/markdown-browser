@@ -37,6 +37,38 @@ export function markdown(p) {
     return el('article', {className: 'markdown', innerHTML: p.html});
 }
 
+/** A busy line with a spinner and the seconds waited, for models that take their time. */
+function waiting(text) {
+    const p = el('p', {className: 'note busy', textContent: `${text}\u2026`});
+    const started = Date.now();
+    const timer = setInterval(() => {
+        if (!p.isConnected) return clearInterval(timer); // the card was replaced or closed
+        p.textContent = `${text}\u2026 ${Math.round((Date.now() - started) / 1000)}s`;
+    }, 1000);
+    return p;
+}
+
+/** 4.2s under ten seconds, then whole seconds, then minutes. */
+function seconds(ms) {
+    const s = ms / 1000;
+    if (s < 10) return `${s.toFixed(1)}s`;
+    if (s < 100) return `${Math.round(s)}s`;
+    return `${Math.floor(s / 60)}m ${Math.round(s % 60)}s`;
+}
+
+/** The AI summary shown above a page: loading, the summary, or what went wrong. */
+export function summary(s, onClose) {
+    const body = s.state === 'loading' ? waiting('Reading the page and asking the model')
+        : s.state === 'error' ? el('p', {className: 'error-text', textContent: s.error})
+        : el('div', {className: 'markdown', innerHTML: s.html}); // sanitized by the backend
+    return el('aside', {className: 'summary', ariaLabel: 'AI summary'},
+        el('div', {className: 'summary-head'},
+            el('strong', {textContent: '\u2728 Summary'}),
+            el('button', {type: 'button', className: 'summary-close', title: 'Close summary', textContent: '\u00D7', onclick: onClose})),
+        body,
+        s.state === 'done' ? el('p', {className: 'note', textContent: `Written by ${s.source} in ${seconds(s.millis)}; it can be wrong.`}) : '');
+}
+
 export function source(p) {
     return el('pre', {className: 'source'}, el('code', {textContent: p.source}));
 }

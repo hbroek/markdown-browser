@@ -74,8 +74,8 @@ function heading(text) {
 
 const span = (className, text = '') => Object.assign(document.createElement('span'), {className, textContent: text});
 
-/** `openCredentials()` is called from the menu's first entry. */
-export function initMenu(openCredentials) {
+/** `openCredentials()` and `openAI()` are called from the menu's first entries. */
+export function initMenu(openCredentials, openAI) {
     const btn = $('menu');
     const menu = $('settings-menu');
 
@@ -87,8 +87,10 @@ export function initMenu(openCredentials) {
     function build() {
         const creds = item('menuitem', credentials.saved ? 'Site credentials (saved for this site)' : 'Site credentials\u2026', null,
             () => { close(); openCredentials(); }, span('menu-icon', '\u{1F511}'));
+        const aiEntry = item('menuitem', 'AI assistant\u2026', null, () => { close(); openAI(); }, span('menu-icon', '\u2728'));
         menu.replaceChildren(
             creds,
+            aiEntry,
             heading('Theme'),
             ...themes.map((t) => item('menuitemradio', t.name, t.id === theme, () => { applyTheme(t.id); build(); }, span('menu-icon', t.icon))),
             heading('Color scheme'),

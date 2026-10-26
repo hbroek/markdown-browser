@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 	"markdown-browser/internal/auth"
 	"markdown-browser/internal/bookmarks"
+	"markdown-browser/internal/fetch"
 	"markdown-browser/internal/settings"
 )
 
@@ -164,4 +166,143 @@ func TestUseLocalBookmarks(t *testing.T) {
 func readFile(path string) (string, error) {
 	data, err := os.ReadFile(path)
 	return string(data), err
+}
+
+// aiServer answers chat completions with `reply` and records the last request.
+func aiServer(t *testing.T, reply string, got *string, auth *string) *httptest.Server {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		data, _ := io.ReadAll(r.Body)
+		if got != nil {
+			*got = string(data)
+		}
+		if auth != nil {
+			*auth = r.Header.Get("Authorization")
+		}
+		json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]any{"content": reply}}}})
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func pageServer(t *testing.T) *httptest.Server {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		io.WriteString(w, `<title>Async Rust</title><script>evil()</script><h1>Async</h1><p>Futures are lazy.</p>`)
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func TestSaveAIKeepsKeyOutOfSettingsAndNeedsConsentForRemote(t *testing.T) {
+	a := testApp(t, &miniLinkaGoGo{})
+	a.fetcher = fetch.NewFetcher(a.auth, nil)
+
+	// A server that is not on this computer needs consent.
+	err := a.SaveAI(AIInput{Preset: "openai", BaseURL: "https://api.openai.com/v1", Model: "m"}, "sk-secret")
+	if err == nil || !strings.Contains(err.Error(), "allow sending") {
+		t.Fatalf("remote without consent: %v", err)
+	}
+	if err := a.SaveAI(AIInput{Preset: "openai", BaseURL: "https://api.openai.com/v1", Model: "m"}, ""); err == nil {
+		t.Error("a preset that needs a key was saved without one")
+	}
+	if err := a.SaveAI(AIInput{Preset: "openai", BaseURL: "https://api.openai.com/v1", Model: "m", Consent: true}, "sk-secret"); err != nil {
+		t.Fatal(err)
+	}
+	info := a.AISettings()
+	if !info.Configured || !info.HasKey || !info.Consented || info.Model != "m" {
+		t.Errorf("info = %+v", info)
+	}
+	data, _ := readFile(a.settingsPath)
+	if strings.Contains(data, "sk-secret") || !strings.Contains(data, "api.openai.com") {
+		t.Errorf("settings.json = %s", data)
+	}
+	// A saved key is reused when the dialog is saved again without typing one.
+	if err := a.SaveAI(AIInput{Preset: "openai", BaseURL: "https://api.openai.com/v1", Model: "m2", Consent: true}, ""); err != nil {
+		t.Errorf("resave: %v", err)
+	}
+}
+
+func TestAIFeaturesNeedAProvider(t *testing.T) {
+	a := testApp(t, &miniLinkaGoGo{})
+	if _, err := a.SummarizePage("https://x.test/"); err == nil || !strings.Contains(err.Error(), "AI") {
+		t.Errorf("SummarizePage without a provider: %v", err)
+	}
+}
+
+func TestSummarizeAndSuggestUseThePageText(t *testing.T) {
+	a := testApp(t, &miniLinkaGoGo{})
+	a.fetcher = fetch.NewFetcher(a.auth, nil)
+	var sent, authHeader string
+	llm := aiServer(t, "- **Futures** are lazy", &sent, &authHeader)
+	pages := pageServer(t)
+	if err := a.SaveAI(AIInput{Preset: "custom", BaseURL: llm.URL + "/v1", Model: "m"}, ""); err != nil { // loopback: no consent, no key
+		t.Fatal(err)
+	}
+
+	sum, err := a.SummarizePage(pages.URL)
+	if err != nil || !strings.Contains(sum.HTML, "<strong>Futures</strong>") || sum.Source != "m" || sum.Millis < 0 {
+		t.Fatalf("SummarizePage = %+v, %v", sum, err)
+	}
+	if !strings.Contains(sent, "Futures are lazy") || strings.Contains(sent, "evil()") || !strings.Contains(sent, "Async Rust") {
+		t.Errorf("model was sent %s", sent)
+	}
+	if authHeader != "" {
+		t.Errorf("sent credentials to a keyless server: %q", authHeader)
+	}
+
+	llm2 := aiServer(t, "```json\n{\"title\":\"Async Rust\",\"description\":\"About futures.\",\"keywords\":[\"rust\",\"async\"]}\n```", nil, nil)
+	if err := a.SaveAI(AIInput{Preset: "custom", BaseURL: llm2.URL + "/v1"}, ""); err != nil {
+		t.Fatal(err)
+	}
+	s, err := a.SuggestBookmark(pages.URL)
+	if err != nil || s.Description != "About futures." || len(s.Keywords) != 2 {
+		t.Errorf("SuggestBookmark = %+v, %v", s, err)
+	}
+	if _, err := a.SummarizePage("bookmarks:search?q=x"); err == nil {
+		t.Error("summarized a search page")
+	}
+}
+
+func TestSwitchingBookmarkStorageKeepsAISettings(t *testing.T) {
+	a := testApp(t, &miniLinkaGoGo{})
+	if err := a.SaveAI(AIInput{Preset: "ollama", BaseURL: "http://127.0.0.1:11434/v1", Model: "llama3.2"}, ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.UseLocalBookmarks(); err != nil {
+		t.Fatal(err)
+	}
+	if got := a.AISettings(); got.Model != "llama3.2" {
+		t.Errorf("AI settings lost: %+v", got)
+	}
+	if data, _ := readFile(a.settingsPath); !strings.Contains(data, "llama3.2") {
+		t.Errorf("settings.json lost the AI section: %s", data)
+	}
+}
+
+func TestTestAIReportsServerErrors(t *testing.T) {
+	a := testApp(t, &miniLinkaGoGo{})
+	bad := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Error(w, `{"error":{"message":"no"}}`, 401) }))
+	defer bad.Close()
+	if _, err := a.TestAI(AIInput{BaseURL: bad.URL + "/v1"}, "k"); err == nil || !strings.Contains(err.Error(), "rejected the API key") {
+		t.Errorf("TestAI = %v", err)
+	}
+}
+
+func TestSummarySourceNamesTheModelOrProvider(t *testing.T) {
+	a := testApp(t, &miniLinkaGoGo{})
+	for _, tc := range []struct {
+		in   AIInput
+		want string
+	}{
+		{AIInput{Preset: "ollama", BaseURL: "http://127.0.0.1:11434/v1", Model: "llama3.2"}, "llama3.2"},
+		{AIInput{Preset: "apple", BaseURL: "http://127.0.0.1:1976/v1"}, "Apple on-device (fm serve)"},
+		{AIInput{Preset: "custom", BaseURL: "http://127.0.0.1:8080/v1"}, "127.0.0.1:8080"},
+	} {
+		if err := a.SaveAI(tc.in, ""); err != nil {
+			t.Fatal(err)
+		}
+		if got := a.aiSource(); got != tc.want {
+			t.Errorf("source = %q, want %q", got, tc.want)
+		}
+	}
 }

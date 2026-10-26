@@ -13,6 +13,18 @@ import (
 // gives the defaults, so the file is only needed to change something.
 type Settings struct {
 	Bookmarks Backend `json:"bookmarks"`
+	AI        AI      `json:"ai"`
+}
+
+// AI is the language model provider (see package ai). The API key is not here:
+// it is kept in the system keychain.
+type AI struct {
+	Preset  string `json:"preset"` // id of an ai.Preset, "custom" for any other
+	BaseURL string `json:"baseUrl"`
+	Model   string `json:"model"`
+	// Consent is the origin the user agreed to send page text to. Servers on
+	// this computer need no consent.
+	Consent string `json:"consent"`
 }
 
 // Backend names a bookmark backend and its settings, e.g.
@@ -30,6 +42,15 @@ func Load(path, dir string) Settings {
 		_ = json.Unmarshal(data, &s) // keep what parsed; fall back to defaults for the rest
 	}
 	return Resolve(s, dir)
+}
+
+// LoadRaw reads path without filling in defaults, so a save does not pin them.
+func LoadRaw(path string) Settings {
+	var s Settings
+	if data, err := os.ReadFile(path); err == nil {
+		_ = json.Unmarshal(data, &s)
+	}
+	return s
 }
 
 // Resolve fills in defaults (the SQLite file under dir) without changing s.

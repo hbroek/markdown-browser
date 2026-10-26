@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -50,5 +51,17 @@ func TestRegistered(t *testing.T) {
 	s.Close()
 	if _, err := bookmarks.Open("sqlite", nil, bookmarks.Deps{}); err == nil {
 		t.Error("missing path should fail")
+	}
+}
+
+func TestOpenCreatesMissingFolders(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "not", "yet", "there", "bookmarks.db")
+	s, err := Open(path)
+	if err != nil {
+		t.Fatalf("Open in a missing folder: %v", err)
+	}
+	s.Close()
+	if _, err := os.Stat(path); err != nil {
+		t.Errorf("database not created: %v", err)
 	}
 }

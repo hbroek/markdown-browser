@@ -427,7 +427,10 @@ func (a *App) UseLocalBookmarks() error {
 
 // switchBookmarks opens the backend, saves the choice and starts using it.
 func (a *App) switchBookmarks(backend string, cfg bookmarks.Config) error {
-	next := settings.Settings{Bookmarks: settings.Backend{Backend: backend, Config: cfg}}
+	a.bmMu.RLock()
+	aiCfg := a.settings.AI
+	a.bmMu.RUnlock()
+	next := settings.Settings{Bookmarks: settings.Backend{Backend: backend, Config: cfg}, AI: aiCfg}
 	dir := ""
 	if a.settingsPath != "" {
 		dir = filepath.Dir(a.settingsPath)

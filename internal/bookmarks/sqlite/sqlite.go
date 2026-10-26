@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -57,6 +59,8 @@ func Open(path string) (*Store, error) {
 	dsn := "file:" + url.PathEscape(path) + "?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)"
 	if path == ":memory:" {
 		dsn = "file::memory:?_pragma=foreign_keys(1)"
+	} else if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil { // a first run has no config folder yet
+		return nil, fmt.Errorf("bookmarks database %s: %w", path, err)
 	}
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {

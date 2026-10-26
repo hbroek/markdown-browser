@@ -26,6 +26,7 @@
         <div id="history-menu" class="menu" hidden></div>
     </div>
     <button id="console-toggle" title="Show console (Ctrl/Cmd+J)" aria-pressed="false">&gt;_</button>
+    <button id="summarize" title="Summarize this page with AI" aria-label="Summarize this page" disabled>&#10024;</button>
     <button id="source" title="Show source" disabled>&lt;/&gt;</button>
     <div class="menu-wrap">
         <button id="menu" title="Menu" aria-haspopup="true" aria-expanded="false" aria-label="Menu">&#9776;</button>
@@ -115,6 +116,9 @@
         <label>Description <textarea id="bookmark-desc" rows="3"></textarea></label>
         <label>Keywords <input id="bookmark-keywords" type="text" placeholder="comma, separated"></label>
         <label>Folder <select id="bookmark-folder"></select></label>
+        <div class="dialog-actions">
+            <button type="button" id="bookmark-suggest" title="Fill in the title, description and keywords from the page with AI">&#10024; Suggest from the page</button>
+        </div>
         <p id="bookmark-status" role="status"></p>
         <div class="dialog-actions">
             <button type="button" id="bookmark-delete" class="danger" hidden>Delete</button>
@@ -165,6 +169,26 @@
         <div class="dialog-actions">
             <span class="spacer"></span>
             <button type="button" id="storage-cancel">Cancel</button>
+            <button type="submit" class="primary">Save</button>
+        </div>
+    </form>
+</dialog>
+<dialog id="ai-dialog" aria-labelledby="ai-title">
+    <h2 id="ai-title">AI assistant</h2>
+    <form id="ai-form" autocomplete="off">
+        <label>Provider <select id="ai-preset"></select></label>
+        <p id="ai-note" class="note" hidden></p>
+        <label>Server address <input id="ai-url" type="text" spellcheck="false" placeholder="https://&hellip;/v1"></label>
+        <label>Model <input id="ai-model" type="text" spellcheck="false"></label>
+        <label id="ai-key-wrap">API key <input id="ai-key" type="password" spellcheck="false"></label>
+        <label id="ai-consent-wrap" class="radio" hidden><input id="ai-consent" type="checkbox"> <span id="ai-consent-text"></span></label>
+        <p class="note">The key is kept in your system keychain, never in a file. Summaries and bookmark suggestions send the
+            text of the page to the provider you choose; a server on this computer sends nothing out.</p>
+        <p id="ai-status" role="status"></p>
+        <div class="dialog-actions">
+            <button type="button" id="ai-test">Test</button>
+            <span class="spacer"></span>
+            <button type="button" id="ai-cancel">Cancel</button>
             <button type="submit" class="primary">Save</button>
         </div>
     </form>

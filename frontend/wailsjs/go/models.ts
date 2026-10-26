@@ -1,3 +1,46 @@
+export namespace ai {
+	
+	export class Preset {
+	    id: string;
+	    name: string;
+	    baseUrl: string;
+	    model: string;
+	    keyRequired: boolean;
+	    note: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Preset(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.baseUrl = source["baseUrl"];
+	        this.model = source["model"];
+	        this.keyRequired = source["keyRequired"];
+	        this.note = source["note"];
+	    }
+	}
+	export class Suggestion {
+	    title: string;
+	    description: string;
+	    keywords: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Suggestion(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.title = source["title"];
+	        this.description = source["description"];
+	        this.keywords = source["keywords"];
+	    }
+	}
+
+}
+
 export namespace auth {
 	
 	export class Credential {
@@ -244,6 +287,82 @@ export namespace history {
 
 export namespace main {
 	
+	export class AIInfo {
+	    presets: ai.Preset[];
+	    preset: string;
+	    baseUrl: string;
+	    model: string;
+	    configured: boolean;
+	    hasKey: boolean;
+	    consented: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new AIInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.presets = this.convertValues(source["presets"], ai.Preset);
+	        this.preset = source["preset"];
+	        this.baseUrl = source["baseUrl"];
+	        this.model = source["model"];
+	        this.configured = source["configured"];
+	        this.hasKey = source["hasKey"];
+	        this.consented = source["consented"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class AIInput {
+	    preset: string;
+	    baseUrl: string;
+	    model: string;
+	    consent: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new AIInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.preset = source["preset"];
+	        this.baseUrl = source["baseUrl"];
+	        this.model = source["model"];
+	        this.consent = source["consent"];
+	    }
+	}
+	export class AISummary {
+	    html: string;
+	    source: string;
+	    millis: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new AISummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.html = source["html"];
+	        this.source = source["source"];
+	        this.millis = source["millis"];
+	    }
+	}
 	export class BookmarkSettings {
 	    backend: string;
 	    root: string;

@@ -1,6 +1,6 @@
 import './style.css';
 import './schemes.css';
-import {Navigate, Reload, Back, Forward, History, ClearHistory, FullHistory, BookmarkFor, NewTab, CloseTab} from '../wailsjs/go/main/App';
+import {Navigate, Reload, Back, Forward, History, ClearHistory, FullHistory, BookmarkFor, NewTab, CloseTab, SummarizePage} from '../wailsjs/go/main/App';
 import {OnFileDrop} from '../wailsjs/runtime/runtime';
 import * as view from './view.js';
 import {initConsole, toggleConsole} from './console.js';
@@ -8,6 +8,7 @@ import {initBookmarks, openBookmark} from './bookmarks.js';
 import {initPanel, panelShortcut, refreshPanel} from './bookmarkpanel.js';
 import {initStorage} from './storage.js';
 import {initMenu, showCredentialState} from './theme.js';
+import {initAI, openAI, aiReady} from './ai.js';
 import {initCredentials, openCredentials, credentialOrigins} from './creds.js';
 
 const $ = (id) => document.getElementById(id);
@@ -15,7 +16,7 @@ const address = $('address');
 const content = $('content');
 const sourceBtn = $('source');
 
-// Each tab is {id, page, pending, showSource, seq, loading, scroll}. A restored tab
+// Each tab is {id, page, pending, summary, showSource, seq, loading, scroll}. A restored tab
 // that was not selected has only `pending`, its address, until it is first shown.
 // The Go side keeps the tab's back/forward history under the same id; the last page shown is kept here
 // so switching tabs does not fetch again.
@@ -29,13 +30,14 @@ function render() {
     const p = currentPage();
     const showSource = active?.showSource ?? false;
     sourceBtn.disabled = p?.kind !== 'markdown';
+    $('summarize').disabled = !p?.url || p.kind === 'error' || isSearch(p.url);
     sourceBtn.setAttribute('aria-pressed', String(showSource && !sourceBtn.disabled));
-    content.replaceChildren(
+    const body = (
         !p ? view.welcome()
             : p.kind === 'markdown' ? (showSource ? view.source(p) : view.markdown(p))
             : p.kind === 'fallback' ? view.fallback(p, (origin) => openCredentials({origin}))
-            : view.error(p, () => goActive((id) => Navigate(id, p.url)), (page) => openCredentials({origin: page.origin, kind: page.authScheme === 'basic' ? 'basic' : page.authScheme === 'bearer' ? 'bearer' : 'cookie'})),
-    );
+            : view.error(p, () => goActive((id) => Navigate(id, p.url)), (page) => openCredentials({origin: page.origin, kind: page.authScheme === 'basic' ? 'basic' : page.authScheme === 'bearer' ? 'bearer' : 'cookie'})));
+    content.replaceChildren(...(active?.summary ? [view.summary(active.summary, closeSummary), body] : [body]));
     content.scrollTop = 0;
 }
 
@@ -65,6 +67,7 @@ function display() {
 function show(tab, p) {
     tab.page = p;
     tab.pending = '';
+    tab.summary = null;
     tab.showSource = false;
     if (tab === active) display();
     renderTabs();
@@ -188,7 +191,7 @@ function activate(tab) {
 }
 
 /** Opens a tab, loading `url` in it when given. A background tab does not take over the window. */
-const newTab = async () => ({id: await NewTab(), page: null, pending: '', showSource: false, seq: 0, loading: false, scroll: 0});
+const newTab = async () => ({id: await NewTab(), page: null, pending: '', summary: null, showSource: false, seq: 0, loading: false, scroll: 0});
 
 async function openTab(url = '', {background = false} = {}) {
     const tab = await newTab();
@@ -224,6 +227,33 @@ function stepTab(by) {
 }
 
 $('tab-new').addEventListener('click', () => openTab());
+
+// --- AI summary ---
+
+function closeSummary() {
+    active.summary = null;
+    render();
+}
+
+async function summarize() {
+    const tab = active;
+    const url = tab?.page?.url;
+    if (!url || $('summarize').disabled) return;
+    if (!(await aiReady())) return openAI(); // first use: choose a provider
+    tab.summary = {state: 'loading', url};
+    if (tab === active) render();
+    let result;
+    try {
+        const r = await SummarizePage(url);
+        result = {state: 'done', url, html: r.html, source: r.source, millis: r.millis};
+    } catch (e) {
+        result = {state: 'error', url, error: String(e)};
+    }
+    if (tab.summary?.url !== url || tab.page?.url !== url) return; // closed, or the tab moved on
+    tab.summary = result;
+    if (tab === active) render();
+}
+$('summarize').addEventListener('click', summarize);
 
 function toggleSource() {
     if (sourceBtn.disabled) return;
@@ -362,7 +392,8 @@ initBookmarks(() => { updateBookmarkIndicator(); refreshPanel(); });
 initPanel((url, newTab) => newTab ? openTab(url) : goActive((id) => Navigate(id, url)), updateBookmarkIndicator);
 initStorage(() => { updateBookmarkIndicator(); refreshPanel(); });
 
-initMenu(() => openCredentials({origin: originOf(currentPage()?.url ?? '').replace(/^null$/, '')}));
+initMenu(() => openCredentials({origin: originOf(currentPage()?.url ?? '').replace(/^null$/, '')}), openAI);
+initAI();
 initConsole();
 restoreTabs();
 address.focus();

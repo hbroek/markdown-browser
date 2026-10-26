@@ -146,3 +146,14 @@ func TestMarkdownLocalImages(t *testing.T) {
 		t.Errorf("remote page referenced a local file: %s", out)
 	}
 }
+
+func TestText(t *testing.T) {
+	title, text := Text([]byte(`<html><head><title> My  page </title><style>p{}</style></head>
+<body><script>var x=1</script><h1>Head</h1><p>Hello <b>big</b> world</p><div hidden>secret</div><ul><li>one</li><li>two</li></ul></body></html>`), "text/html")
+	if title != "My page" {
+		t.Errorf("title = %q", title)
+	}
+	if want := "Head\nHello big world\none\ntwo"; text != want {
+		t.Errorf("text = %q, want %q", text, want)
+	}
+}

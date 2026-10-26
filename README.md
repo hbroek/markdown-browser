@@ -63,6 +63,23 @@ title plus link list when a page is not markdown. Go backend, HTML/CSS/JS fronte
   (`{"bookmarks": {"backend": "linkagogo", "config": {"root": "<folder id>"}}}`), and further backends plug in
   through `internal/bookmarks`.
 
+## AI assistant
+
+The sparkle button (✨) in the toolbar summarizes the current page in a card above it, and **Suggest from the page**
+in the bookmark dialog fills in an empty title, description and keywords for you to edit. Choose a provider under
+☰ → **AI assistant**; the first click on either button opens that dialog if nothing is set up.
+
+Any server that speaks the OpenAI chat-completions API works. Presets are filled in for Claude (Anthropic's
+compatible endpoint), OpenAI, Google Gemini, Ollama, and Apple's on-device model through `fm serve`
+(`http://127.0.0.1:1976/v1`; run `fm serve` first). Or enter your own address and model.
+
+- The API key is kept in the system keychain, never in `settings.json`.
+- A summary or suggestion sends the page's text (cut to about 30,000 characters) to the provider. For a server that is not on this
+  computer you must tick *Allow sending page text to …* once; servers on this computer need no permission.
+- Pages are re-fetched for this, with your saved credentials, so pages behind a login work. Model output is shown
+  as sanitized markdown, and the prompts tell the model to ignore instructions inside the page.
+- The model can be wrong; the summary card says so.
+
 ## Sites that need a login
 
 Open **Site credentials** in the ☰ menu (it is highlighted when the current site has one saved), or use the button on a 401/403 page, and add a credential for a site:
@@ -134,18 +151,23 @@ For the release workflow, add these repository secrets (Settings > Secrets and v
 
 ## Roadmap
 
-Planned, in this order:
+Planned AI features, all through the same provider (see **AI assistant** above), in this order:
 
-1. **AI assistance.** Summarize the current page, and suggest a bookmark's description and keywords. Page text is sent to the chosen provider, so the app will say which one is active and ask before the first cloud call. Providers are pluggable, like bookmark storage, and API keys live in the OS keychain:
-   - **Claude** (Anthropic Messages API), first.
-   - **OpenAI-compatible** endpoints with a configurable base URL, which covers OpenAI, Gemini, Llama hosts and local servers such as Ollama.
-   - **Apple on-device models** (macOS) through `fm serve`, which exposes them at `http://127.0.0.1:1976/v1/chat/completions`. It uses the same OpenAI-compatible provider, so no native code is needed and nothing leaves the machine.
+1. **Ask this page.** A chat panel beside the page for questions about what you are reading. The page's markdown is the context.
+2. **Bulk tagging.** Run the bookmark suggestion over every bookmark that has no description or keywords, with a size estimate and a confirmation before anything is sent.
+3. **Smart bookmark search.** Type a sentence in the address bar and have the model re-rank bookmark and history matches by meaning.
+4. **Auto-organize.** After an import, or for a messy folder, the model proposes folders and moves, and you approve them.
+5. **Reading tools.** Translate a page, explain or simplify a selection, an outline of long pages, a digest of an RSS feed.
+6. **Compare tabs.** Summarize several open tabs together.
+7. **Save as notes.** Turn the current page into a local markdown summary with a link back.
+8. **Native Claude backend.** The Messages API for Claude-only features such as prompt caching, behind the same provider interface.
 
 ## Layout
 
 ```
 main.go, app.go        Wails bootstrap and the methods exposed to the UI
 internal/fetch         HTTP/file loading, content negotiation, size and redirect limits
+internal/ai            OpenAI-compatible chat client; summary and bookmark-suggestion prompts
 internal/render        markdown -> sanitized HTML, feeds, link extraction
 internal/browser       ties fetch + render + history together
 internal/nav           back/forward stack

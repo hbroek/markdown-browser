@@ -2,6 +2,8 @@ package auth
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/zalando/go-keyring"
@@ -31,7 +33,27 @@ func (KeyringStore) Get(name string) (string, error) {
 	return v, err
 }
 
-func (KeyringStore) Set(name, value string) error { return keyring.Set(service, name, value) }
+func (KeyringStore) Set(name, value string) error {
+	return explainKeyring(keyring.Set(service, name, value))
+}
+
+// explainKeyring adds what to do when the Linux Secret Service is missing,
+// locked or has no default keyring: the usual case on a desktop without
+// GNOME, or a fresh account that never created a "login" keyring.
+func explainKeyring(err error) error {
+	if err == nil {
+		return nil
+	}
+	msg := err.Error()
+	for _, sign := range []string{"org.freedesktop", "unlock", "dbus", "D-Bus", "secret service", "Secret Service"} {
+		if strings.Contains(msg, sign) {
+			return fmt.Errorf("%w\n\nOn Linux, secrets need a Secret Service keyring that is running and unlocked. "+
+				"Install gnome-keyring (or enable KeePassXC's Secret Service), open \"Passwords and Keys\" (Seahorse), "+
+				"create a keyring, make it the default and unlock it, then try again", err)
+		}
+	}
+	return err
+}
 
 func (KeyringStore) Delete(name string) error {
 	err := keyring.Delete(service, name)

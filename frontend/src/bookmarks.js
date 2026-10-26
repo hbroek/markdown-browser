@@ -1,5 +1,6 @@
 // The bookmark and folder dialogs: add, edit and delete.
-import {BookmarkFolders, SaveBookmark, DeleteBookmark, SaveBookmarkFolder, DeleteBookmarkFolder} from '../wailsjs/go/main/App';
+import {BookmarkFolders, SaveBookmark, DeleteBookmark, SaveBookmarkFolder, DeleteBookmarkFolder, SuggestBookmark} from '../wailsjs/go/main/App';
+import {aiReady, openAI} from './ai.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -9,9 +10,10 @@ let folderHint = () => null;
 /** `fn()` gives the folder selected in the panel (or null); new items start there. */
 export function setFolderHint(fn) { folderHint = fn; }
 
-function say(el, text, isError = false) {
+function say(el, text, isError = false, busy = false) {
     el.textContent = text;
     el.classList.toggle('error-text', isError);
+    el.classList.toggle('busy', busy);
 }
 
 function lastFolder() {
@@ -179,6 +181,29 @@ export function initBookmarks(changed) {
             onChange();
         } catch (err) {
             say(bookmarkStatus, String(err), true);
+        }
+    });
+
+    $('bookmark-suggest').addEventListener('click', async () => {
+        const btn = $('bookmark-suggest');
+        if (!(await aiReady())) return openAI();
+        btn.disabled = true;
+        say(bookmarkStatus, 'Reading the page and asking the model\u2026', false, true);
+        try {
+            const s = await SuggestBookmark($('bookmark-url').value);
+            const filled = [];
+            const title = $('bookmark-name');
+            if (s.title && (!title.value.trim() || title.value.trim() === $('bookmark-url').value.trim())) { title.value = s.title; filled.push('title'); }
+            const desc = $('bookmark-desc');
+            if (s.description && !desc.value.trim()) { desc.value = s.description; filled.push('description'); }
+            const have = $('bookmark-keywords').value.split(',').map((k) => k.trim()).filter(Boolean);
+            const added = (s.keywords ?? []).filter((k) => !have.some((h) => h.toLowerCase() === k.toLowerCase()));
+            if (added.length) { $('bookmark-keywords').value = [...have, ...added].join(', '); filled.push('keywords'); }
+            say(bookmarkStatus, filled.length ? `Suggested ${filled.join(', ')} \u2013 edit as you like, then save.` : 'Nothing to add: those fields are already filled in.');
+        } catch (err) {
+            say(bookmarkStatus, String(err), true);
+        } finally {
+            btn.disabled = false;
         }
     });
 
