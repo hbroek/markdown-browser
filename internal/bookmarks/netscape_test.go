@@ -81,6 +81,31 @@ func TestImportMergesFoldersAndSkipsDuplicates(t *testing.T) {
 	}
 }
 
+func TestImportDuplicateMeansSamePageInSameFolder(t *testing.T) {
+	ctx := t.Context()
+	s := bookmarks.NewMemory()
+	other, _ := s.SaveFolder(ctx, bookmarks.Folder{Name: "Elsewhere"})
+	s.SaveBookmark(ctx, bookmarks.Bookmark{FolderID: other.ID, Title: "Mine", URL: "https://go.dev"})
+
+	root := &bookmarks.ImportFolder{Folders: []*bookmarks.ImportFolder{
+		{Name: "A", Bookmarks: []bookmarks.Bookmark{
+			{Title: "Go", URL: "https://go.dev/"},
+			{Title: "Go again", URL: "https://GO.dev"}, // same page twice in one folder
+		}},
+		{Name: "B", Bookmarks: []bookmarks.Bookmark{{Title: "Go", URL: "https://go.dev/"}}},
+	}}
+	res, err := bookmarks.Import(ctx, s, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Bookmarks != 2 || res.Duplicates != 1 {
+		t.Errorf("result = %+v, want 2 imported and 1 duplicate", res)
+	}
+	if hits, _ := s.Search(ctx, []string{"go.dev"}); len(hits) != 3 {
+		t.Errorf("want the page in three folders, got %+v", hits)
+	}
+}
+
 func TestExportRoundTrip(t *testing.T) {
 	ctx := t.Context()
 	src := bookmarks.NewMemory()

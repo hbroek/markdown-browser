@@ -321,6 +321,27 @@ button.danger.armed { background: var(--bad); color: #fff; }
 .pencil { padding: 0 6px; opacity: 0.45; }
 .pencil span { display: inline-block; transform: scaleX(-1); }
 .tree-row:hover .pencil, .pencil:focus-visible { opacity: 1; }
+/* drag and drop */
+body.moving, body.moving * { cursor: progress !important; }
+body.moving #bookmarks-tree { opacity: 0.6; pointer-events: none; }
+#bookmarks-tree.dragging, #bookmarks-tree.dragging * { cursor: grabbing; user-select: none; }
+.tree-row.drop-target { background: var(--hover); outline: 2px solid var(--accent2); outline-offset: -2px; }
+#bookmarks-tree.drop-root { box-shadow: inset 0 0 0 2px var(--accent2); }
+.drag-ghost {
+    position: fixed;
+    z-index: 10;
+    pointer-events: none;
+    max-width: 240px;
+    padding: 3px 10px;
+    border-radius: 6px;
+    background: var(--grad);
+    color: #fff;
+    font-size: 0.85em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
 .tree-empty, .tree-note { padding: 4px 12px; color: var(--muted); }
 .tree-note.error-text { color: var(--bad); }
 

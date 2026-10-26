@@ -26,7 +26,7 @@ type ImportFolder struct {
 type ImportResult struct {
 	Folders    int  `json:"folders"`    // folders created
 	Bookmarks  int  `json:"bookmarks"`  // bookmarks added
-	Duplicates int  `json:"duplicates"` // already saved, left unchanged
+	Duplicates int  `json:"duplicates"` // already saved in the same folder, left unchanged
 	Skipped    int  `json:"skipped"`    // not an http, https or file address
 	Canceled   bool `json:"canceled"`   // the user closed the file dialog
 }
@@ -122,8 +122,9 @@ func textUntil(z *xhtml.Tokenizer, tag string) string {
 }
 
 // Import adds the file's folders and bookmarks to the store. Folders merge
-// with existing ones of the same name; a page that is already bookmarked is
-// left alone rather than overwritten.
+// with existing ones of the same name; a bookmark whose page is already saved
+// in the same folder is left alone rather than overwritten. The same page in a
+// different folder is imported.
 func Import(ctx Context, s Store, root *ImportFolder) (ImportResult, error) {
 	var res ImportResult
 	existing, err := s.Folders(ctx)
@@ -136,6 +137,25 @@ func Import(ctx Context, s Store, root *ImportFolder) (ImportResult, error) {
 		ids[key{f.ParentID, strings.ToLower(f.Name)}] = f.ID
 	}
 
+	// The pages already in each folder, read once per folder and kept current
+	// as the import adds to it.
+	pages := map[string]map[string]bool{}
+	pagesIn := func(id string) (map[string]bool, error) {
+		if set, ok := pages[id]; ok {
+			return set, nil
+		}
+		set := map[string]bool{}
+		list, err := s.Bookmarks(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		for _, b := range list {
+			set[Key(b.URL)] = true
+		}
+		pages[id] = set
+		return set, nil
+	}
+
 	var walk func(f *ImportFolder, id string) error
 	walk = func(f *ImportFolder, id string) error {
 		for _, b := range f.Bookmarks {
@@ -145,11 +165,16 @@ func Import(ctx Context, s Store, root *ImportFolder) (ImportResult, error) {
 					continue
 				}
 				return err
-			} else if _, err := s.FindByURL(ctx, clean.URL); err == nil {
-				res.Duplicates++
-				continue
-			} else if !errors.Is(err, ErrNotFound) {
-				return err
+			} else {
+				seen, err := pagesIn(id)
+				if err != nil {
+					return err
+				}
+				if seen[Key(clean.URL)] {
+					res.Duplicates++
+					continue
+				}
+				seen[Key(clean.URL)] = true
 			}
 			b.FolderID = id
 			if _, err := s.SaveBookmark(ctx, b); err != nil {

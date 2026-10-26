@@ -1,7 +1,7 @@
 // The bookmarks side panel: folders with their bookmarks, a pencil on each
 // row to edit it. Folder contents are fetched only while a folder is open.
 // The tree is keyboard driven (arrows, Enter, "e" to edit); see onTreeKey.
-import {BookmarkFolders, BookmarksIn, ImportBookmarks, ExportBookmarks} from '../wailsjs/go/main/App';
+import {BookmarkFolders, BookmarksIn, SaveBookmark, SaveBookmarkFolder, ImportBookmarks, ExportBookmarks} from '../wailsjs/go/main/App';
 import {openBookmark, openFolder, setFolderHint} from './bookmarks.js';
 import {openStorage} from './storage.js';
 
@@ -17,6 +17,7 @@ let currentKey = '';      // the row that is (or was last) focused: "f:<id>" or 
 let onOpenUrl = () => {};
 let onChanged = () => {};
 const actions = new WeakMap(); // row -> what its keys do
+let parentOf = new Map();  // folder id -> parent folder id, for refusing a move into itself
 
 function stored(key, value) {
     try {
@@ -63,7 +64,7 @@ function folderRow(f, depth) {
     row.classList.add('folder');
     row.setAttribute('aria-expanded', String(isOpen));
     row.setAttribute('aria-label', f.name);
-    actions.set(row, {folder: true, open: isOpen, activate: toggleFolder, toggle: toggleFolder, edit});
+    actions.set(row, {folder: true, open: isOpen, activate: toggleFolder, toggle: toggleFolder, edit, drag: {folder: f}});
     return row;
 }
 
@@ -81,7 +82,7 @@ function bookmarkRow(b, depth) {
     // One level in, so the title lines up under folder names rather than their carets.
     const row = newRow(`b:${b.id}`, b.folderId, depth + 1, label, pencil(`Edit bookmark ${b.title}`, edit));
     row.setAttribute('aria-label', b.title);
-    actions.set(row, {folder: false, activate: go, edit});
+    actions.set(row, {folder: false, activate: go, edit, drag: {bookmark: b}});
     return row;
 }
 
@@ -162,6 +163,7 @@ export async function refreshPanel() {
     try {
         const folders = (await BookmarkFolders()) ?? [];
         const children = new Map();
+        parentOf = new Map(folders.map((f) => [f.id, f.parentId]));
         for (const f of folders) children.set(f.parentId, [...(children.get(f.parentId) ?? []), f]);
 
         // Fetch bookmarks only for the top level and for folders that are shown open.
@@ -234,6 +236,121 @@ export async function panelShortcut() {
     focusRow(rows.find((r) => r.dataset.key === currentKey) ?? rows[0]);
 }
 
+// --- drag and drop ---
+// Pointer events rather than HTML5 drag and drop: the window's file-drop
+// handling takes over native drags on some platforms.
+
+const DRAG_DISTANCE = 5; // pixels before a press becomes a drag
+let drag = null;         // {item, ghost, target, x, y, started}
+
+/** Can the dragged item go into folder `target` ('' is the top level)? */
+function canDrop(item, target) {
+    if (item.bookmark) return item.bookmark.folderId !== target;
+    const f = item.folder;
+    if (f.parentId === target) return false;
+    for (let id = target; id; id = parentOf.get(id)) {
+        if (id === f.id) return false; // into itself or one of its own subfolders
+    }
+    return true;
+}
+
+function dropTargetAt(x, y) {
+    const hit = document.elementFromPoint(x, y);
+    if (!hit || !tree.contains(hit)) return null;
+    const row = hit.closest('.tree-row');
+    if (row) return {row, folder: row.dataset.folder};
+    return {row: null, folder: ''}; // empty space in the tree: the top level
+}
+
+function markTarget(target) {
+    for (const r of tree.querySelectorAll('.drop-target')) r.classList.remove('drop-target');
+    tree.classList.remove('drop-root');
+    if (!target) return;
+    if (target.row) target.row.classList.add('drop-target');
+    else tree.classList.add('drop-root');
+}
+
+function endDrag() {
+    if (!drag) return;
+    drag.ghost?.remove();
+    markTarget(null);
+    tree.classList.remove('dragging');
+    document.removeEventListener('mousemove', onDragMove);
+    document.removeEventListener('mouseup', onDragEnd);
+    document.removeEventListener('keydown', onDragKey, true);
+    drag = null;
+}
+
+function onDragMove(e) {
+    if (!drag.started) {
+        if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < DRAG_DISTANCE) return;
+        drag.started = true;
+        tree.classList.add('dragging');
+        const name = drag.item.folder?.name ?? drag.item.bookmark.title;
+        drag.ghost = el('div', {className: 'drag-ghost', textContent: (drag.item.folder ? '\u{1F4C1} ' : '') + name});
+        document.body.append(drag.ghost);
+    }
+    drag.ghost.style.left = `${e.clientX + 12}px`;
+    drag.ghost.style.top = `${e.clientY + 8}px`;
+    const t = dropTargetAt(e.clientX, e.clientY);
+    drag.target = t && canDrop(drag.item, t.folder) ? t : null;
+    markTarget(drag.target);
+}
+
+function onDragKey(e) {
+    if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        endDrag();
+        swallowClick();
+    }
+}
+
+/** A drag ends with a click on the row it started on; ignore that one. */
+function swallowClick() {
+    const stop = (e) => { e.stopPropagation(); e.preventDefault(); };
+    document.addEventListener('click', stop, {capture: true, once: true});
+    setTimeout(() => document.removeEventListener('click', stop, {capture: true}), 0);
+}
+
+async function onDragEnd() {
+    const {item, target, started} = drag;
+    endDrag();
+    if (!started) return;
+    swallowClick();
+    if (!target) return;
+    document.body.classList.add('moving'); // a remote backend can take a moment
+    try {
+        if (item.bookmark) {
+            await SaveBookmark({...item.bookmark, folderId: target.folder});
+        } else {
+            await SaveBookmarkFolder({id: item.folder.id, parentId: target.folder, name: item.folder.name});
+        }
+        if (target.folder) { // show where it went
+            open.add(target.folder);
+            stored('bookmarks.open', JSON.stringify([...open]));
+        }
+        say('');
+        await refreshPanel();
+        onChanged();
+    } catch (err) {
+        say(String(err), true);
+    } finally {
+        document.body.classList.remove('moving');
+    }
+}
+
+tree.addEventListener('mousedown', (e) => {
+    if (e.button !== 0 || e.target.closest('.pencil')) return;
+    const row = e.target.closest('.tree-row');
+    const item = row && actions.get(row)?.drag;
+    if (!item) return;
+    drag = {item, ghost: null, target: null, x: e.clientX, y: e.clientY, started: false};
+    document.addEventListener('mousemove', onDragMove);
+    document.addEventListener('mouseup', onDragEnd);
+    document.addEventListener('keydown', onDragKey, true);
+});
+
 // --- import and export ---
 
 function say(text, isError = false) {
@@ -245,7 +362,7 @@ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 function summary(r) {
     const parts = [`Imported ${plural(r.bookmarks, 'bookmark')} and ${plural(r.folders, 'new folder')}`];
-    if (r.duplicates) parts.push(`${r.duplicates} already saved`);
+    if (r.duplicates) parts.push(`${r.duplicates} already in the folder`);
     if (r.skipped) parts.push(`${r.skipped} skipped (not a web address)`);
     return parts.join('; ');
 }

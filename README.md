@@ -34,7 +34,7 @@ title plus link list when a page is not markdown. Go backend, HTML/CSS/JS fronte
 
 - The ribbon next to the address bar saves the current page (filled when it is already saved). The dialog takes a
   title, address, description, keywords and a folder. The panel button at the far left (Cmd/Ctrl+B) shows folders
-  and bookmarks as a tree; the pencil on a row edits or deletes it, and **New folder** adds folders.
+  and bookmarks as a tree; the pencil on a row edits or deletes it, and **New folder** adds folders. Drag a bookmark or folder onto a folder to move it, or onto empty space for the top level (Esc cancels).
   In the panel, use ↑/↓ to move, → / ← to open and close folders, Enter to open a bookmark, **e** to edit and
   Esc to go back to the address bar.
 - **Search** by typing in the address bar: several words (`rust async`), a single bare word (`rust`), or anything
@@ -42,7 +42,7 @@ title plus link list when a page is not markdown. Go backend, HTML/CSS/JS fronte
   description or a keyword. Pages from your browsing history that match (title or address) are merged in
   after the bookmarks, without repeating a bookmarked page. Anything with a dot, colon or slash, like `example.com`, is an address instead.
 - **Import / Export** (bottom of the panel) read and write browser-compatible HTML bookmark files (Chrome, Firefox,
-  Safari and others) and markdown lists. Importing merges folders by name and leaves pages you already saved alone.
+  Safari and others) and markdown lists. Importing merges folders by name and skips a page that is already in the same folder (the same page in another folder is imported).
   Markdown exports look like this, and hand-written files in the same shape import too (headings also work as
   folders):
 
