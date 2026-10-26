@@ -66,6 +66,14 @@ func testApp(t *testing.T, api *miniLinkaGoGo) *App {
 		settingsPath: filepath.Join(dir, "settings.json"),
 		lggURL:       srv.URL + "/api/v1",
 	}
+	// Registered after TempDir, so it runs first: Windows cannot delete an open database.
+	t.Cleanup(func() {
+		a.bmMu.Lock()
+		defer a.bmMu.Unlock()
+		if a.bookmarks != nil {
+			a.bookmarks.Close()
+		}
+	})
 	return a
 }
 
