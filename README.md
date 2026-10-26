@@ -17,7 +17,7 @@ title plus link list when a page is not markdown. Go backend, HTML/CSS/JS fronte
 - A network console (hidden by default; `>_` button or Cmd/Ctrl+J) lists every request with its status code;
   click the bar to see request and response headers, timing and size. Cookie and token values are hidden
 - Bookmarks with folders, descriptions and keywords: see below
-- Light and dark mode follow the OS
+- Light and dark themes: follows the OS by default; the ◐ toolbar button cycles System, Light and Dark
 - Sites that need a login: see below
 
 | Shortcut | Action |
@@ -133,9 +133,8 @@ For the release workflow, add these repository secrets (Settings > Secrets and v
 
 Planned, in this order:
 
-1. **Manual dark mode.** A Light / Dark / System choice. Today the app follows the OS appearance.
-2. **Tabs.** Several pages open at once, each with its own back/forward history, with Cmd/Ctrl+T, W and Tab to open, close and switch.
-3. **AI assistance.** Summarize the current page, and suggest a bookmark's description and keywords. Page text is sent to the chosen provider, so the app will say which one is active and ask before the first cloud call. Providers are pluggable, like bookmark storage, and API keys live in the OS keychain:
+1. **Tabs.** Several pages open at once, each with its own back/forward history, with Cmd/Ctrl+T, W and Tab to open, close and switch.
+2. **AI assistance.** Summarize the current page, and suggest a bookmark's description and keywords. Page text is sent to the chosen provider, so the app will say which one is active and ask before the first cloud call. Providers are pluggable, like bookmark storage, and API keys live in the OS keychain:
    - **Claude** (Anthropic Messages API), first.
    - **OpenAI-compatible** endpoints with a configurable base URL, which covers OpenAI, Gemini, Llama hosts and local servers such as Ollama.
    - **Apple on-device models** (macOS) through `fm serve`, which exposes them at `http://127.0.0.1:1976/v1/chat/completions`. It uses the same OpenAI-compatible provider, so no native code is needed and nothing leaves the machine.

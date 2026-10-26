@@ -18,8 +18,13 @@
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
+/* Theme: no data-theme follows the OS; "light" and "dark" (set by theme.js) force one.
+   The dark palette appears twice because a media query cannot be shared with a selector. */
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+
 @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme="light"]) {
         --bg: #0f0d1a;
         --fg: #e8e6f5;
         --bar: #181530;
@@ -35,6 +40,23 @@
         --hover: #231f45;
         --code-bg: #17142b;
     }
+}
+
+:root[data-theme="dark"] {
+    --bg: #0f0d1a;
+    --fg: #e8e6f5;
+    --bar: #181530;
+    --border: #2f2b55;
+    --ok: #3fb950;
+    --warn: #d29922;
+    --bad: #f85149;
+    --muted: #9198a1;
+    --accent: #6d63f5;
+    --accent2: #e879f9;
+    --accent3: #fb923c;
+    --link: #a5b4fc;
+    --hover: #231f45;
+    --code-bg: #17142b;
 }
 
 * { box-sizing: border-box; }

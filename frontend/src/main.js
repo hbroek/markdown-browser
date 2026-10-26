@@ -6,6 +6,7 @@ import {initConsole, toggleConsole} from './console.js';
 import {initBookmarks, openBookmark} from './bookmarks.js';
 import {initPanel, panelShortcut, refreshPanel} from './bookmarkpanel.js';
 import {initStorage} from './storage.js';
+import {initTheme} from './theme.js';
 import {initCredentials, openCredentials, credentialOrigins} from './creds.js';
 
 const $ = (id) => document.getElementById(id);
@@ -189,6 +190,7 @@ initBookmarks(() => { updateBookmarkIndicator(); refreshPanel(); });
 initPanel((url) => go(() => Navigate(url)), updateBookmarkIndicator);
 initStorage(() => { updateBookmarkIndicator(); refreshPanel(); });
 
+initTheme();
 initConsole();
 render();
 address.focus();

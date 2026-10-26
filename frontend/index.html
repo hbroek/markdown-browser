@@ -4,6 +4,10 @@
     <meta charset="UTF-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
     <title>Markdown Browser</title>
+    <script>
+        // Apply the saved theme before first paint so it does not flash.
+        try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
+    </script>
 </head>
 <body>
 <header class="toolbar">
@@ -19,6 +23,7 @@
     </div>
     <button id="creds" title="Site credentials" aria-haspopup="dialog">&#128273;</button>
     <button id="console-toggle" title="Show console (Ctrl/Cmd+J)" aria-pressed="false">&gt;_</button>
+    <button id="theme" title="Theme: follow system">◐</button>
     <button id="source" title="Show source" disabled>&lt;/&gt;</button>
 </header>
 <div class="workspace">
