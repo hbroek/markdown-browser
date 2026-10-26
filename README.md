@@ -16,6 +16,7 @@ title plus link list when a page is not markdown. Go backend, HTML/CSS/JS fronte
 - **Full history…** in the history menu generates a markdown page of everything you visited
 - A network console (hidden by default; `>_` button or Cmd/Ctrl+J) lists every request with its status code;
   click the bar to see request and response headers, timing and size. Cookie and token values are hidden
+- Bookmarks with folders, descriptions and keywords: see below
 - Light and dark mode follow the OS
 - Sites that need a login: see below
 
@@ -25,7 +26,25 @@ title plus link list when a page is not markdown. Go backend, HTML/CSS/JS fronte
 | Cmd/Ctrl+R | Reload |
 | Alt+← / Alt+→ (Cmd+[ / Cmd+] on Mac) | Back / forward |
 | Cmd/Ctrl+U | Toggle markdown source |
+| Cmd/Ctrl+D | Add or edit the bookmark for this page |
+| Cmd/Ctrl+B | Show / hide the bookmarks panel |
 | Cmd/Ctrl+J | Show / hide the network console |
+
+## Bookmarks
+
+- The ribbon next to the address bar saves the current page (filled when it is already saved). The dialog takes a
+  title, address, description, keywords and a folder. The panel button at the far left (Cmd/Ctrl+B) shows folders
+  and bookmarks as a tree; the pencil on a row edits or deletes it, and **New folder** adds folders.
+- **Search** by typing in the address bar: several words (`rust async`), a single bare word (`rust`), or anything
+  starting with `?` (`?go.dev`; a bare `?` lists everything). Every word must match the title, address,
+  description or a keyword. Pages from your browsing history that match (title or address) are merged in
+  after the bookmarks, without repeating a bookmarked page. Anything with a dot, colon or slash, like `example.com`, is an address instead.
+- Bookmarks live in a local SQLite file, `bookmarks.db`, in the app's config folder. The storage is pluggable
+  (`internal/bookmarks`): to choose a backend or move the file, add a `settings.json` next to it:
+
+  ```json
+  {"bookmarks": {"backend": "sqlite", "config": {"path": "/path/to/bookmarks.db"}}}
+  ```
 
 ## Sites that need a login
 
@@ -105,6 +124,8 @@ internal/render        markdown -> sanitized HTML, feeds, link extraction
 internal/browser       ties fetch + render + history together
 internal/nav           back/forward stack
 internal/history       visit log and the generated history page
+internal/bookmarks     bookmark model, Store interface, backends (sqlite/, memory), conformance tests
+internal/settings      settings.json (bookmark backend choice)
 internal/auth          per-site credentials in the keychain
 internal/cookies       encrypted persistent cookie jar
 internal/localfile     serves local images to pages opened from disk

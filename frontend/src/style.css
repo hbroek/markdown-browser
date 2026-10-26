@@ -74,8 +74,10 @@ body.wails-drop-target-active #content { outline: 3px dashed var(--accent); outl
     font: inherit;
 }
 
+.workspace { display: flex; flex: 1; min-height: 0; }
 #content {
     flex: 1;
+    min-width: 0;
     overflow: auto;
     padding: 24px;
 }
@@ -237,6 +239,61 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 #cred-status { min-height: 1.4em; margin: 0; color: var(--muted); }
 #cred-status.error-text { color: #d1242f; }
 .error button { margin-right: 8px; }
+
+#bookmark-status { min-height: 1.4em; margin: 0; color: var(--muted); }
+#bookmark-status.error-text { color: var(--bad); }
+button.danger { color: var(--bad); border-color: var(--bad); }
+button.danger.armed { background: var(--bad); color: #fff; }
+
+/* bookmark ribbon: outline when the page is not saved, filled when it is */
+#bookmark-add svg { display: block; margin: auto; }
+#bookmark-add svg path { fill: none; }
+#bookmark-add.active svg path { fill: currentColor; }
+
+/* bookmarks panel */
+#bookmarks-panel {
+    display: flex;
+    flex-direction: column;
+    flex: none;
+    width: 280px;
+    border-right: 1px solid var(--border);
+    background: var(--bar);
+}
+#bookmarks-panel[hidden] { display: none; }
+.panel-head { display: flex; gap: 6px; align-items: center; padding: 8px; border-bottom: 1px solid var(--border); }
+.panel-head button, .pencil {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--fg);
+    cursor: pointer;
+}
+.panel-head button { padding: 2px 8px; font: inherit; font-size: 0.85em; }
+#bookmarks-tree { flex: 1; overflow: auto; padding: 4px 0; font-size: 0.9em; }
+.tree-row { display: flex; align-items: center; gap: 4px; padding-right: 6px; }
+.tree-row:hover { background: var(--hover); }
+.tree-label {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    gap: 4px;
+    padding: 4px 0;
+    border: 0;
+    background: none;
+    color: var(--fg);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.tree-label > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-label.plain { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-row:not(.folder) .tree-label { color: var(--link); }
+.caret { width: 1em; flex: none; color: var(--muted); }
+.pencil { padding: 0 6px; opacity: 0.45; }
+.pencil span { display: inline-block; transform: scaleX(-1); }
+.tree-row:hover .pencil, .pencil:focus-visible { opacity: 1; }
+.tree-empty, .tree-note { padding: 4px 12px; color: var(--muted); }
+.tree-note.error-text { color: var(--bad); }
 
 .toolbar button.active { border-color: var(--accent); color: var(--accent); }
 

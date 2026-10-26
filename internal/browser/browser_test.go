@@ -172,3 +172,50 @@ func TestUnauthorizedPageOffersOrigin(t *testing.T) {
 		t.Errorf("after saving credentials: %+v", p)
 	}
 }
+
+func TestAddressBarBookmarkSearch(t *testing.T) {
+	srv := testServer()
+	defer srv.Close()
+	hist := history.Open("")
+	b := New(hist, fetch.NewFetcher(nil, nil))
+	var queries []string
+	b.SetSearcher(func(_ context.Context, q string) (string, error) {
+		queries = append(queries, q)
+		return "# Found\n\n- [Hit](<https://hit.test/>)\n", nil
+	})
+
+	b.Navigate(context.Background(), srv.URL+"/md")
+	p := b.Navigate(context.Background(), "rust  async")
+	if p.Kind != page.KindMarkdown || p.URL != "bookmarks:search?q=rust+async" || !strings.Contains(p.HTML, "https://hit.test/") {
+		t.Fatalf("search page = %+v", p)
+	}
+	if len(queries) != 1 || queries[0] != "rust async" {
+		t.Errorf("queries = %q", queries)
+	}
+	if !p.CanBack {
+		t.Error("search should be a history entry for Back")
+	}
+	if got := hist.Entries(); len(got) != 1 {
+		t.Errorf("searches must not be recorded as visits: %+v", got)
+	}
+
+	if p := b.Back(context.Background()); !strings.HasSuffix(p.URL, "/md") {
+		t.Errorf("Back = %q", p.URL)
+	}
+	if p := b.Forward(context.Background()); p.URL != "bookmarks:search?q=rust+async" || p.Kind != page.KindMarkdown {
+		t.Errorf("Forward = %+v", p)
+	}
+	if p := b.Reload(context.Background()); p.Kind != page.KindMarkdown || len(queries) != 3 {
+		t.Errorf("Reload = %+v, queries %q", p, queries)
+	}
+	if p := b.Navigate(context.Background(), "?"); p.URL != "bookmarks:search?q=" || queries[len(queries)-1] != "" {
+		t.Errorf("bare ? = %+v, queries %q", p, queries)
+	}
+}
+
+func TestSearchWithoutBackend(t *testing.T) {
+	b := New(history.Open(""), fetch.NewFetcher(nil, nil))
+	if p := b.Navigate(context.Background(), "anything goes"); p.Kind != page.KindError {
+		t.Errorf("want error page, got %+v", p)
+	}
+}

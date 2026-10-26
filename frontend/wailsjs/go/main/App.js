@@ -6,6 +6,18 @@ export function Back() {
   return window['go']['main']['App']['Back']();
 }
 
+export function BookmarkFolders() {
+  return window['go']['main']['App']['BookmarkFolders']();
+}
+
+export function BookmarkFor(arg1) {
+  return window['go']['main']['App']['BookmarkFor'](arg1);
+}
+
+export function BookmarksIn(arg1) {
+  return window['go']['main']['App']['BookmarksIn'](arg1);
+}
+
 export function ClearCookies() {
   return window['go']['main']['App']['ClearCookies']();
 }
@@ -20,6 +32,14 @@ export function ClearNetworkLog() {
 
 export function Credentials() {
   return window['go']['main']['App']['Credentials']();
+}
+
+export function DeleteBookmark(arg1) {
+  return window['go']['main']['App']['DeleteBookmark'](arg1);
+}
+
+export function DeleteBookmarkFolder(arg1) {
+  return window['go']['main']['App']['DeleteBookmarkFolder'](arg1);
 }
 
 export function DeleteCredential(arg1) {
@@ -54,6 +74,18 @@ export function Reload() {
   return window['go']['main']['App']['Reload']();
 }
 
+export function SaveBookmark(arg1) {
+  return window['go']['main']['App']['SaveBookmark'](arg1);
+}
+
+export function SaveBookmarkFolder(arg1) {
+  return window['go']['main']['App']['SaveBookmarkFolder'](arg1);
+}
+
 export function SaveCredential(arg1) {
   return window['go']['main']['App']['SaveCredential'](arg1);
+}
+
+export function SearchBookmarks(arg1) {
+  return window['go']['main']['App']['SearchBookmarks'](arg1);
 }

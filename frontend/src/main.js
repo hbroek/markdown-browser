@@ -1,8 +1,10 @@
 import './style.css';
-import {Navigate, Reload, Back, Forward, History, ClearHistory, FullHistory} from '../wailsjs/go/main/App';
+import {Navigate, Reload, Back, Forward, History, ClearHistory, FullHistory, BookmarkFor} from '../wailsjs/go/main/App';
 import {OnFileDrop} from '../wailsjs/runtime/runtime';
 import * as view from './view.js';
 import {initConsole, toggleConsole} from './console.js';
+import {initBookmarks, openBookmark} from './bookmarks.js';
+import {initPanel, togglePanel, refreshPanel} from './bookmarkpanel.js';
 import {initCredentials, openCredentials, credentialOrigins} from './creds.js';
 
 const $ = (id) => document.getElementById(id);
@@ -12,6 +14,7 @@ const sourceBtn = $('source');
 
 let current = null;      // last page shown
 let showSource = false;
+let saved = null;        // the bookmark for the current page, if any
 let seq = 0;             // ignores responses to superseded navigations
 
 function render() {
@@ -27,16 +30,25 @@ function render() {
     content.scrollTop = 0;
 }
 
+// Bookmark searches live at "bookmarks:search?q=..."; show them as typed: "?query".
+const SEARCH_PREFIX = 'bookmarks:search?q=';
+const isSearch = (url) => url.startsWith(SEARCH_PREFIX);
+function displayAddress(url) {
+    if (!isSearch(url)) return url;
+    try { return '?' + decodeURIComponent(url.slice(SEARCH_PREFIX.length).replace(/\+/g, ' ')); } catch { return url; }
+}
+
 function show(p) {
     current = p;
     showSource = false;
-    if (p.url) address.value = p.url;
+    if (p.url) address.value = displayAddress(p.url);
     document.title = p.title ? `${p.title} - Markdown Browser` : 'Markdown Browser';
     $('back').disabled = !p.canBack;
     $('forward').disabled = !p.canForward;
     $('reload').disabled = !p.url;
     render();
     updateCredentialIndicator();
+    updateBookmarkIndicator();
 }
 
 async function go(action) {
@@ -123,6 +135,8 @@ document.addEventListener('keydown', (e) => {
     else if (mod && key === 'r') { if (current?.url) go(Reload); }
     else if (mod && key === 'u') toggleSource();
     else if (mod && key === 'j') toggleConsole();
+    else if (mod && key === 'b') togglePanel();
+    else if (mod && key === 'd') { if (current?.url && !isSearch(current.url)) openBookmarkDialog(); }
     else if (e.altKey && e.key === 'ArrowLeft' || mod && e.key === '[') { if (!$('back').disabled) go(Back); }
     else if (e.altKey && e.key === 'ArrowRight' || mod && e.key === ']') { if (!$('forward').disabled) go(Forward); }
     else handled = false;
@@ -151,6 +165,27 @@ initCredentials((origin) => {
     if (current?.url && originOf(current.url) === originOf(origin)) go(Reload);
 });
 $('creds').addEventListener('click', () => openCredentials({origin: originOf(current?.url ?? '').replace(/^null$/, '')}));
+
+// The ribbon is an outline until the current page is bookmarked, then filled.
+const bookmarkBtn = $('bookmark-add');
+async function updateBookmarkIndicator() {
+    const url = current?.url ?? '';
+    bookmarkBtn.disabled = !url || isSearch(url); // a results page is not a page to save
+    let found = null;
+    if (url && !isSearch(url)) {
+        try { found = await BookmarkFor(url); } catch { /* no backend: stays unsaved */ }
+    }
+    if ((current?.url ?? '') !== url) return; // navigated away meanwhile
+    saved = found;
+    bookmarkBtn.classList.toggle('active', Boolean(saved));
+    bookmarkBtn.title = saved ? 'Edit bookmark (Ctrl/Cmd+D)' : 'Add bookmark (Ctrl/Cmd+D)';
+}
+function openBookmarkDialog() {
+    openBookmark({bookmark: saved, url: current.url, title: current.title});
+}
+bookmarkBtn.addEventListener('click', openBookmarkDialog);
+initBookmarks(() => { updateBookmarkIndicator(); refreshPanel(); });
+initPanel((url) => go(() => Navigate(url)));
 
 initConsole();
 render();

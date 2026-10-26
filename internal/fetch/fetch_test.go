@@ -193,3 +193,32 @@ func TestCredentialsAppliedAndNotLeakedOnRedirect(t *testing.T) {
 		t.Errorf("credentials leaked to another origin: cookie=%q auth=%q", gotCookie, gotAuth)
 	}
 }
+
+func TestSearchQuery(t *testing.T) {
+	tests := []struct {
+		in, want string
+		search   bool
+	}{
+		{"rust", "rust", true},
+		{"rust async", "rust async", true},
+		{"  rust   2.0 release ", "rust 2.0 release", true},
+		{"?rust", "rust", true},
+		{"?", "", true},
+		{"? go.dev", "go.dev", true},
+		{"example.com", "", false},
+		{"localhost", "", false},
+		{"localhost:3000", "", false},
+		{"henry.localhost:8080/timeline", "", false},
+		{"https://example.com/a b", "", false},
+		{"/Users/me/My Notes/a.md", "", false},
+		{"~/My Notes/a.md", "", false},
+		{"javascript:alert(1)", "", false},
+		{"", "", false},
+	}
+	for _, tt := range tests {
+		got, ok := SearchQuery(tt.in)
+		if ok != tt.search || got != tt.want {
+			t.Errorf("SearchQuery(%q) = %q, %v; want %q, %v", tt.in, got, ok, tt.want, tt.search)
+		}
+	}
+}

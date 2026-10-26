@@ -7,10 +7,12 @@
 </head>
 <body>
 <header class="toolbar">
+    <button id="bookmarks-toggle" title="Show bookmarks (Ctrl/Cmd+B)" aria-pressed="false"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 4.5v15" stroke="currentColor" stroke-width="2"/></svg></button>
     <button id="back" title="Back" disabled>&#8592;</button>
     <button id="forward" title="Forward" disabled>&#8594;</button>
     <button id="reload" title="Reload" disabled>&#8635;</button>
-    <input id="address" type="text" spellcheck="false" placeholder="Enter a URL" autocomplete="off"/>
+    <button id="bookmark-add" title="Add bookmark (Ctrl/Cmd+D)" aria-haspopup="dialog" disabled><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M6 3.5h12v17l-6-4.2-6 4.2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button>
+    <input id="address" type="text" spellcheck="false" placeholder="Enter a URL, or search bookmarks and history" autocomplete="off"/>
     <div class="menu-wrap">
         <button id="history" title="History" aria-haspopup="true" aria-expanded="false">&#9662;</button>
         <div id="history-menu" class="menu" hidden></div>
@@ -19,7 +21,18 @@
     <button id="console-toggle" title="Show console (Ctrl/Cmd+J)" aria-pressed="false">&gt;_</button>
     <button id="source" title="Show source" disabled>&lt;/&gt;</button>
 </header>
-<main id="content"></main>
+<div class="workspace">
+    <aside id="bookmarks-panel" aria-label="Bookmarks" hidden>
+        <div class="panel-head">
+            <strong>Bookmarks</strong>
+            <span class="spacer"></span>
+            <button type="button" id="folder-new" title="New folder">New folder</button>
+            <button type="button" id="bookmarks-close" title="Hide bookmarks (Ctrl/Cmd+B)">&times;</button>
+        </div>
+        <div id="bookmarks-tree" role="tree"></div>
+    </aside>
+    <main id="content"></main>
+</div>
 <footer id="console" hidden>
     <div id="console-panel" hidden>
         <div class="console-head">
@@ -73,6 +86,38 @@
             <span class="spacer"></span>
             <button type="button" id="cred-close">Close</button>
             <button type="submit" id="cred-save" class="primary">Save</button>
+        </div>
+    </form>
+</dialog>
+<dialog id="bookmark-dialog" aria-labelledby="bookmark-title">
+    <h2 id="bookmark-title">Add bookmark</h2>
+    <form id="bookmark-form" autocomplete="off">
+        <label>Title <input id="bookmark-name" type="text"></label>
+        <label>Address <input id="bookmark-url" type="text" spellcheck="false" required></label>
+        <label>Description <textarea id="bookmark-desc" rows="3"></textarea></label>
+        <label>Keywords <input id="bookmark-keywords" type="text" placeholder="comma, separated"></label>
+        <label>Folder <select id="bookmark-folder"></select></label>
+        <p id="bookmark-status" role="status"></p>
+        <div class="dialog-actions">
+            <button type="button" id="bookmark-delete" class="danger" hidden>Delete</button>
+            <span class="spacer"></span>
+            <button type="button" id="bookmark-cancel">Cancel</button>
+            <button type="submit" id="bookmark-save" class="primary">Save</button>
+        </div>
+    </form>
+</dialog>
+<dialog id="folder-dialog" aria-labelledby="folder-title">
+    <h2 id="folder-title">New folder</h2>
+    <form id="folder-form" autocomplete="off">
+        <label>Name <input id="folder-name" type="text" required></label>
+        <label>Inside <select id="folder-parent"></select></label>
+        <p id="folder-note" class="note" hidden>Deleting a folder also deletes everything inside it.</p>
+        <p id="folder-status" role="status"></p>
+        <div class="dialog-actions">
+            <button type="button" id="folder-delete" class="danger" hidden>Delete</button>
+            <span class="spacer"></span>
+            <button type="button" id="folder-cancel">Cancel</button>
+            <button type="submit" class="primary">Save</button>
         </div>
     </form>
 </dialog>

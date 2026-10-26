@@ -2,15 +2,21 @@ package main
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"markdown-browser/internal/auth"
+	"markdown-browser/internal/bookmarks"
+	_ "markdown-browser/internal/bookmarks/sqlite"
 	"markdown-browser/internal/browser"
 	"markdown-browser/internal/cookies"
 	"markdown-browser/internal/fetch"
 	"markdown-browser/internal/history"
 	"markdown-browser/internal/page"
+	"markdown-browser/internal/settings"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -22,6 +28,9 @@ type App struct {
 	auth    *auth.Manager
 	jar     *cookies.Jar
 	fetcher *fetch.Fetcher
+
+	bookmarks    bookmarks.Store // nil when the backend failed to open
+	bookmarksErr error
 }
 
 func NewApp() *App {
@@ -44,6 +53,10 @@ func NewApp() *App {
 	}
 	a.fetcher = fetch.NewFetcher(a.auth, a.jar)
 	a.browser = browser.New(history.Open(file("history.json")), a.fetcher)
+
+	cfg := settings.Load(file("settings.json"), dir)
+	a.bookmarks, a.bookmarksErr = bookmarks.Open(cfg.Bookmarks.Backend, cfg.Bookmarks.Config)
+	a.browser.SetSearcher(a.searchPage)
 	return a
 }
 
@@ -85,3 +98,132 @@ func (a *App) ClearCookies() { a.jar.Clear() }
 func (a *App) NetworkLog() []fetch.Entry { return a.fetcher.Log.Entries() }
 
 func (a *App) ClearNetworkLog() { a.fetcher.Log.Clear() }
+
+// Bookmark bindings. They report a backend that failed to open as an error
+// instead of stopping the browser from starting.
+
+func (a *App) store() (bookmarks.Store, error) {
+	if a.bookmarks == nil {
+		return nil, fmt.Errorf("bookmarks unavailable: %w", a.bookmarksErr)
+	}
+	return a.bookmarks, nil
+}
+
+func (a *App) bookmarkCtx() context.Context {
+	if a.ctx == nil {
+		return context.Background()
+	}
+	return a.ctx
+}
+
+// BookmarkFolders lists every folder, flat; the frontend nests them by ParentID.
+func (a *App) BookmarkFolders() ([]bookmarks.Folder, error) {
+	s, err := a.store()
+	if err != nil {
+		return nil, err
+	}
+	return s.Folders(a.bookmarkCtx())
+}
+
+// BookmarksIn lists the bookmarks directly in a folder ("" is the root).
+func (a *App) BookmarksIn(folderID string) ([]bookmarks.Bookmark, error) {
+	s, err := a.store()
+	if err != nil {
+		return nil, err
+	}
+	return s.Bookmarks(a.bookmarkCtx(), folderID)
+}
+
+// BookmarkFor returns the saved bookmark for a URL, or nil when it is not saved.
+func (a *App) BookmarkFor(url string) (*bookmarks.Bookmark, error) {
+	s, err := a.store()
+	if err != nil {
+		return nil, err
+	}
+	b, err := s.FindByURL(a.bookmarkCtx(), url)
+	if errors.Is(err, bookmarks.ErrNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &b, nil
+}
+
+// SaveBookmark creates or updates a bookmark; a new one for an
+// already-saved URL updates the existing bookmark.
+func (a *App) SaveBookmark(b bookmarks.Bookmark) (bookmarks.Bookmark, error) {
+	s, err := a.store()
+	if err != nil {
+		return b, err
+	}
+	return bookmarks.SaveUnique(a.bookmarkCtx(), s, b)
+}
+
+func (a *App) DeleteBookmark(id string) error {
+	s, err := a.store()
+	if err != nil {
+		return err
+	}
+	return s.DeleteBookmark(a.bookmarkCtx(), id)
+}
+
+// SaveBookmarkFolder creates (empty ID), renames or moves a folder.
+func (a *App) SaveBookmarkFolder(f bookmarks.Folder) (bookmarks.Folder, error) {
+	s, err := a.store()
+	if err != nil {
+		return f, err
+	}
+	return s.SaveFolder(a.bookmarkCtx(), f)
+}
+
+// DeleteBookmarkFolder removes a folder with everything inside it.
+func (a *App) DeleteBookmarkFolder(id string) error {
+	s, err := a.store()
+	if err != nil {
+		return err
+	}
+	return s.DeleteFolder(a.bookmarkCtx(), id)
+}
+
+// SearchBookmarks finds bookmarks containing every word of the query.
+func (a *App) SearchBookmarks(query string) ([]bookmarks.Bookmark, error) {
+	s, err := a.store()
+	if err != nil {
+		return nil, err
+	}
+	return s.Search(a.bookmarkCtx(), strings.Fields(query))
+}
+
+// matchingVisits returns the history entries (most recent first) that contain
+// every term in their title or address. No terms means no history: listing
+// everything is what Full history is for.
+func (a *App) matchingVisits(terms []string) []bookmarks.Visit {
+	if len(terms) == 0 {
+		return nil
+	}
+	var out []bookmarks.Visit
+	for _, e := range a.browser.History() {
+		if bookmarks.Matches(bookmarks.Bookmark{Title: e.Title, URL: e.URL}, terms) {
+			out = append(out, bookmarks.Visit{Title: e.Title, URL: e.URL, Time: e.Time})
+		}
+	}
+	return out
+}
+
+// searchPage is the address bar's bookmark and history search: a markdown page of results.
+func (a *App) searchPage(ctx context.Context, query string) (string, error) {
+	s, err := a.store()
+	if err != nil {
+		return "", err
+	}
+	results, err := s.Search(ctx, strings.Fields(query))
+	if err != nil {
+		return "", err
+	}
+	folders, err := s.Folders(ctx)
+	if err != nil {
+		return "", err
+	}
+	return bookmarks.SearchMarkdown(query, results, a.matchingVisits(strings.Fields(query)), folders), nil
+}

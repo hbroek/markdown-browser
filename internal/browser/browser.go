@@ -17,8 +17,21 @@ import (
 	"markdown-browser/internal/render"
 )
 
+// Searcher turns a bookmark search query into a markdown page.
+type Searcher func(ctx context.Context, query string) (string, error)
+
+// searchPrefix starts the pseudo-URL of a bookmark search page, so Back,
+// Forward and Reload can rebuild it: "bookmarks:search?q=rust+async".
+const searchPrefix = "bookmarks:search?q="
+
+// SearchURL is the address of the results page for query.
+func SearchURL(query string) string { return searchPrefix + url.QueryEscape(query) }
+
+func isSearchURL(u string) bool { return strings.HasPrefix(u, searchPrefix) }
+
 type Browser struct {
 	fetcher *fetch.Fetcher
+	search  Searcher
 	mu      sync.Mutex
 	stack   *nav.Stack
 	history *history.Log
@@ -27,6 +40,9 @@ type Browser struct {
 func New(log *history.Log, fetcher *fetch.Fetcher) *Browser {
 	return &Browser{stack: nav.NewStack(), history: log, fetcher: fetcher}
 }
+
+// SetSearcher enables bookmark searches typed into the address bar.
+func (b *Browser) SetSearcher(s Searcher) { b.search = s }
 
 // History returns the visit log, most recent first.
 func (b *Browser) History() []history.Entry { return b.history.Entries() }
@@ -46,7 +62,7 @@ func (b *Browser) FullHistory(ctx context.Context) page.Page {
 
 // record adds a successfully loaded page to the visit log.
 func (b *Browser) record(p page.Page) page.Page {
-	if p.Kind != page.KindError {
+	if p.Kind != page.KindError && !isSearchURL(p.URL) { // searches are not visits
 		b.history.Add(p.URL, p.Title)
 	}
 	return p
@@ -56,6 +72,9 @@ func (b *Browser) record(p page.Page) page.Page {
 func (b *Browser) Navigate(ctx context.Context, rawURL string) page.Page {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if q, ok := fetch.SearchQuery(rawURL); ok {
+		rawURL = SearchURL(q)
+	}
 	p := b.load(ctx, rawURL)
 	b.stack.Visit(p.URL)
 	return b.withState(b.record(p))
@@ -102,6 +121,9 @@ func (b *Browser) withState(p page.Page) page.Page {
 
 // load fetches rawURL and builds the Page to display. Failures become error pages.
 func (b *Browser) load(ctx context.Context, rawURL string) page.Page {
+	if isSearchURL(rawURL) {
+		return b.loadSearch(ctx, rawURL)
+	}
 	res, err := b.fetcher.Get(ctx, rawURL)
 	if err != nil {
 		p := page.Page{URL: rawURL, Kind: page.KindError, Error: err.Error()}
@@ -156,5 +178,30 @@ func (b *Browser) load(ctx context.Context, rawURL string) page.Page {
 	if p.Title == "" {
 		p.Title = res.URL
 	}
+	return p
+}
+
+// loadSearch builds the bookmark search results page.
+func (b *Browser) loadSearch(ctx context.Context, rawURL string) page.Page {
+	p := page.Page{URL: rawURL}
+	query, err := url.QueryUnescape(strings.TrimPrefix(rawURL, searchPrefix))
+	if err == nil && b.search == nil {
+		err = fmt.Errorf("bookmarks are not available")
+	}
+	var md string
+	if err == nil {
+		md, err = b.search(ctx, query)
+	}
+	if err != nil {
+		p.Kind, p.Error = page.KindError, err.Error()
+		return p
+	}
+	base, _ := url.Parse(rawURL)
+	html, title, err := render.Markdown([]byte(md), base)
+	if err != nil {
+		p.Kind, p.Error = page.KindError, err.Error()
+		return p
+	}
+	p.Kind, p.HTML, p.Source, p.Title = page.KindMarkdown, html, md, title
 	return p
 }
