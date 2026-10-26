@@ -7,7 +7,7 @@ import {auth} from '../models';
 import {history} from '../models';
 import {fetch} from '../models';
 
-export function Back():Promise<page.Page>;
+export function Back(arg1:number):Promise<page.Page>;
 
 export function BookmarkFolders():Promise<Array<bookmarks.Folder>>;
 
@@ -23,6 +23,8 @@ export function ClearHistory():Promise<void>;
 
 export function ClearNetworkLog():Promise<void>;
 
+export function CloseTab(arg1:number):Promise<void>;
+
 export function Credentials():Promise<Array<auth.Info>>;
 
 export function DeleteBookmark(arg1:string):Promise<void>;
@@ -33,9 +35,9 @@ export function DeleteCredential(arg1:string):Promise<void>;
 
 export function ExportBookmarks(arg1:string):Promise<string>;
 
-export function Forward():Promise<page.Page>;
+export function Forward(arg1:number):Promise<page.Page>;
 
-export function FullHistory():Promise<page.Page>;
+export function FullHistory(arg1:number):Promise<page.Page>;
 
 export function History():Promise<Array<history.Entry>>;
 
@@ -45,11 +47,13 @@ export function ImportCookiesTxt(arg1:string,arg2:string):Promise<number>;
 
 export function LinkaGoGoFolders(arg1:string):Promise<Array<bookmarks.Folder>>;
 
-export function Navigate(arg1:string):Promise<page.Page>;
+export function Navigate(arg1:number,arg2:string):Promise<page.Page>;
 
 export function NetworkLog():Promise<Array<fetch.Entry>>;
 
-export function Reload():Promise<page.Page>;
+export function NewTab():Promise<number>;
+
+export function Reload(arg1:number):Promise<page.Page>;
 
 export function SaveBookmark(arg1:bookmarks.Bookmark):Promise<bookmarks.Bookmark>;
 

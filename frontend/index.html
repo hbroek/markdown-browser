@@ -6,10 +6,14 @@
     <title>Markdown Browser</title>
     <script>
         // Apply the saved theme before first paint so it does not flash.
-        try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
+        try {
+            const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+            const s = localStorage.getItem('scheme'); if (/^[a-z]+$/.test(s || '')) document.documentElement.dataset.scheme = s;
+        } catch {}
     </script>
 </head>
 <body>
+<div class="tabbar"><div id="tabs" role="tablist" aria-label="Tabs"></div><button id="tab-new" type="button" title="New tab (Ctrl/Cmd+T)" aria-label="New tab">+</button></div>
 <header class="toolbar">
     <button id="bookmarks-toggle" title="Show bookmarks (Ctrl/Cmd+B)" aria-pressed="false"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 4.5v15" stroke="currentColor" stroke-width="2"/></svg></button>
     <button id="back" title="Back" disabled>&#8592;</button>
@@ -21,10 +25,12 @@
         <button id="history" title="History" aria-haspopup="true" aria-expanded="false">&#9662;</button>
         <div id="history-menu" class="menu" hidden></div>
     </div>
-    <button id="creds" title="Site credentials" aria-haspopup="dialog">&#128273;</button>
     <button id="console-toggle" title="Show console (Ctrl/Cmd+J)" aria-pressed="false">&gt;_</button>
-    <button id="theme" title="Theme: follow system">◐</button>
     <button id="source" title="Show source" disabled>&lt;/&gt;</button>
+    <div class="menu-wrap">
+        <button id="menu" title="Menu" aria-haspopup="true" aria-expanded="false" aria-label="Menu">&#9776;</button>
+        <div id="settings-menu" class="menu settings-menu" role="menu" hidden></div>
+    </div>
 </header>
 <div class="workspace">
     <aside id="bookmarks-panel" aria-label="Bookmarks" hidden>

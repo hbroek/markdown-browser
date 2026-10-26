@@ -75,16 +75,19 @@ func (a *App) startup(ctx context.Context) {
 	a.fetcher.Log.OnEntry = func(e fetch.Entry) { runtime.EventsEmit(ctx, "net", e) }
 }
 
-func (a *App) Navigate(url string) page.Page { return a.browser.Navigate(a.ctx, url) }
-func (a *App) Reload() page.Page             { return a.browser.Reload(a.ctx) }
-func (a *App) Back() page.Page               { return a.browser.Back(a.ctx) }
-func (a *App) Forward() page.Page            { return a.browser.Forward(a.ctx) }
+// Each page-level call names the tab it acts on; NewTab hands out the ids.
+func (a *App) NewTab() int                            { return a.browser.NewTab() }
+func (a *App) CloseTab(tab int)                       { a.browser.CloseTab(tab) }
+func (a *App) Navigate(tab int, url string) page.Page { return a.browser.Navigate(a.ctx, tab, url) }
+func (a *App) Reload(tab int) page.Page               { return a.browser.Reload(a.ctx, tab) }
+func (a *App) Back(tab int) page.Page                 { return a.browser.Back(a.ctx, tab) }
+func (a *App) Forward(tab int) page.Page              { return a.browser.Forward(a.ctx, tab) }
 
 func (a *App) History() []history.Entry { return a.browser.History() }
 func (a *App) ClearHistory()            { a.browser.ClearHistory() }
 
 // FullHistory opens the whole visit log as a generated markdown page.
-func (a *App) FullHistory() page.Page { return a.browser.FullHistory(a.ctx) }
+func (a *App) FullHistory(tab int) page.Page { return a.browser.FullHistory(a.ctx, tab) }
 
 // Credentials lists saved credentials without their secrets.
 func (a *App) Credentials() []auth.Info { return a.auth.List() }

@@ -1,0 +1,216 @@
+/* Color schemes. No data-scheme is the default violet in style.css. Each scheme
+   sets its own light and dark palette; the dark one applies when the OS is dark
+   (unless the theme is forced light) or when the theme is forced dark. The three
+   accents drive the toolbar highlight, links and gradients; keep the filled
+   accent dark enough for white text. */
+
+/* Ocean */
+:root[data-scheme="ocean"] {
+    --accent: #0369a1;
+    --accent2: #0891b2;
+    --accent3: #f59e0b;
+    --link: #075985;
+    --bar: #eff6fb;
+    --border: #cfe0ec;
+    --hover: #deedf7;
+    --code-bg: #f1f7fb;
+    --grad: linear-gradient(90deg, #0369a1, #0891b2, #f59e0b);
+    --grad-btn: linear-gradient(135deg, #0369a1, #0891b2);
+}
+@media (prefers-color-scheme: dark) {
+    :root[data-scheme="ocean"]:not([data-theme="light"]) {
+        --bg: #0b1220;
+        --bar: #111b2e;
+        --border: #223552;
+        --accent: #0284c7;
+        --accent2: #22d3ee;
+        --accent3: #fbbf24;
+        --link: #7dd3fc;
+        --hover: #172640;
+        --code-bg: #0f1a2c;
+        --grad: linear-gradient(90deg, #0284c7, #22d3ee, #fbbf24);
+        --grad-btn: linear-gradient(135deg, #0284c7, #22d3ee);
+    }
+}
+:root[data-scheme="ocean"][data-theme="dark"] {
+    --bg: #0b1220;
+    --bar: #111b2e;
+    --border: #223552;
+    --accent: #0284c7;
+    --accent2: #22d3ee;
+    --accent3: #fbbf24;
+    --link: #7dd3fc;
+    --hover: #172640;
+    --code-bg: #0f1a2c;
+    --grad: linear-gradient(90deg, #0284c7, #22d3ee, #fbbf24);
+    --grad-btn: linear-gradient(135deg, #0284c7, #22d3ee);
+}
+
+/* Forest */
+:root[data-scheme="forest"] {
+    --accent: #15803d;
+    --accent2: #0d9488;
+    --accent3: #ca8a04;
+    --link: #166534;
+    --bar: #f0f7f2;
+    --border: #cfe3d5;
+    --hover: #dff0e4;
+    --code-bg: #f2f8f4;
+    --grad: linear-gradient(90deg, #15803d, #0d9488, #ca8a04);
+    --grad-btn: linear-gradient(135deg, #15803d, #0d9488);
+}
+@media (prefers-color-scheme: dark) {
+    :root[data-scheme="forest"]:not([data-theme="light"]) {
+        --bg: #0c1410;
+        --bar: #131f18;
+        --border: #263d2f;
+        --accent: #15803d;
+        --accent2: #2dd4bf;
+        --accent3: #facc15;
+        --link: #86efac;
+        --hover: #182a1f;
+        --code-bg: #101c15;
+        --grad: linear-gradient(90deg, #15803d, #2dd4bf, #facc15);
+        --grad-btn: linear-gradient(135deg, #15803d, #2dd4bf);
+    }
+}
+:root[data-scheme="forest"][data-theme="dark"] {
+    --bg: #0c1410;
+    --bar: #131f18;
+    --border: #263d2f;
+    --accent: #15803d;
+    --accent2: #2dd4bf;
+    --accent3: #facc15;
+    --link: #86efac;
+    --hover: #182a1f;
+    --code-bg: #101c15;
+    --grad: linear-gradient(90deg, #15803d, #2dd4bf, #facc15);
+    --grad-btn: linear-gradient(135deg, #15803d, #2dd4bf);
+}
+
+/* Sunset */
+:root[data-scheme="sunset"] {
+    --accent: #dc2626;
+    --accent2: #ea580c;
+    --accent3: #db2777;
+    --link: #b91c1c;
+    --bar: #fff4f0;
+    --border: #f0d5cc;
+    --hover: #fde4dc;
+    --code-bg: #fff6f2;
+    --grad: linear-gradient(90deg, #dc2626, #ea580c, #db2777);
+    --grad-btn: linear-gradient(135deg, #dc2626, #ea580c);
+}
+@media (prefers-color-scheme: dark) {
+    :root[data-scheme="sunset"]:not([data-theme="light"]) {
+        --bg: #170d0b;
+        --bar: #231411;
+        --border: #4a2a22;
+        --accent: #dc2626;
+        --accent2: #fb923c;
+        --accent3: #f472b6;
+        --link: #fca5a5;
+        --hover: #301a15;
+        --code-bg: #1d110e;
+        --grad: linear-gradient(90deg, #dc2626, #fb923c, #f472b6);
+        --grad-btn: linear-gradient(135deg, #dc2626, #fb923c);
+    }
+}
+:root[data-scheme="sunset"][data-theme="dark"] {
+    --bg: #170d0b;
+    --bar: #231411;
+    --border: #4a2a22;
+    --accent: #dc2626;
+    --accent2: #fb923c;
+    --accent3: #f472b6;
+    --link: #fca5a5;
+    --hover: #301a15;
+    --code-bg: #1d110e;
+    --grad: linear-gradient(90deg, #dc2626, #fb923c, #f472b6);
+    --grad-btn: linear-gradient(135deg, #dc2626, #fb923c);
+}
+
+/* Rose */
+:root[data-scheme="rose"] {
+    --bg: #fffafc;
+    --accent: #be185d;
+    --accent2: #e11d48;
+    --accent3: #7c3aed;
+    --link: #9d174d;
+    --bar: #fdf0f5;
+    --border: #f0d0de;
+    --hover: #fbe0ec;
+    --code-bg: #fff3f8;
+    --grad: linear-gradient(90deg, #be185d, #e11d48, #7c3aed);
+    --grad-btn: linear-gradient(135deg, #be185d, #e11d48);
+}
+@media (prefers-color-scheme: dark) {
+    :root[data-scheme="rose"]:not([data-theme="light"]) {
+        --bg: #170b11;
+        --bar: #22101a;
+        --border: #4a2336;
+        --accent: #be185d;
+        --accent2: #fb7185;
+        --accent3: #a78bfa;
+        --link: #f9a8d4;
+        --hover: #301520;
+        --code-bg: #1c0e15;
+        --grad: linear-gradient(90deg, #be185d, #fb7185, #a78bfa);
+        --grad-btn: linear-gradient(135deg, #be185d, #fb7185);
+    }
+}
+:root[data-scheme="rose"][data-theme="dark"] {
+    --bg: #170b11;
+    --bar: #22101a;
+    --border: #4a2336;
+    --accent: #be185d;
+    --accent2: #fb7185;
+    --accent3: #a78bfa;
+    --link: #f9a8d4;
+    --hover: #301520;
+    --code-bg: #1c0e15;
+    --grad: linear-gradient(90deg, #be185d, #fb7185, #a78bfa);
+    --grad-btn: linear-gradient(135deg, #be185d, #fb7185);
+}
+
+/* Graphite */
+:root[data-scheme="graphite"] {
+    --accent: #475569;
+    --accent2: #64748b;
+    --accent3: #0ea5e9;
+    --link: #334155;
+    --bar: #f3f4f6;
+    --border: #d9dde3;
+    --hover: #e5e7eb;
+    --code-bg: #f5f6f8;
+    --grad: linear-gradient(90deg, #475569, #64748b, #0ea5e9);
+    --grad-btn: linear-gradient(135deg, #475569, #64748b);
+}
+@media (prefers-color-scheme: dark) {
+    :root[data-scheme="graphite"]:not([data-theme="light"]) {
+        --bg: #101114;
+        --bar: #17181c;
+        --border: #2c2f36;
+        --accent: #64748b;
+        --accent2: #94a3b8;
+        --accent3: #38bdf8;
+        --link: #cbd5e1;
+        --hover: #202228;
+        --code-bg: #14151a;
+        --grad: linear-gradient(90deg, #64748b, #94a3b8, #38bdf8);
+        --grad-btn: linear-gradient(135deg, #64748b, #94a3b8);
+    }
+}
+:root[data-scheme="graphite"][data-theme="dark"] {
+    --bg: #101114;
+    --bar: #17181c;
+    --border: #2c2f36;
+    --accent: #64748b;
+    --accent2: #94a3b8;
+    --accent3: #38bdf8;
+    --link: #cbd5e1;
+    --hover: #202228;
+    --code-bg: #14151a;
+    --grad: linear-gradient(90deg, #64748b, #94a3b8, #38bdf8);
+    --grad-btn: linear-gradient(135deg, #64748b, #94a3b8);
+}

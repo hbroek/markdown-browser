@@ -40,22 +40,22 @@ func TestNavigateKinds(t *testing.T) {
 	b := New(history.Open(""), fetch.NewFetcher(nil, nil))
 	ctx := context.Background()
 
-	p := b.Navigate(ctx, srv.URL+"/md")
+	p := b.Navigate(ctx, 1, srv.URL+"/md")
 	if p.Kind != page.KindMarkdown || p.Title != "Doc" || !strings.Contains(p.HTML, srv.URL+"/md2") || p.Source == "" {
 		t.Errorf("markdown page = %+v", p)
 	}
 
-	p = b.Navigate(ctx, srv.URL+"/html")
+	p = b.Navigate(ctx, 1, srv.URL+"/html")
 	if p.Kind != page.KindFallback || p.Title != "Plain" || len(p.Links) != 1 {
 		t.Errorf("fallback page = %+v", p)
 	}
 
-	p = b.Navigate(ctx, srv.URL+"/missing")
+	p = b.Navigate(ctx, 1, srv.URL+"/missing")
 	if p.Kind != page.KindError || p.Status != 404 || !strings.HasPrefix(p.Error, "404") {
 		t.Errorf("error page = %+v", p)
 	}
 
-	p = b.Navigate(ctx, "ftp://x")
+	p = b.Navigate(ctx, 1, "ftp://x")
 	if p.Kind != page.KindError {
 		t.Errorf("bad scheme page = %+v", p)
 	}
@@ -67,28 +67,28 @@ func TestBackForwardReload(t *testing.T) {
 	b := New(history.Open(""), fetch.NewFetcher(nil, nil))
 	ctx := context.Background()
 
-	if p := b.Reload(ctx); p.Kind != page.KindError {
+	if p := b.Reload(ctx, 1); p.Kind != page.KindError {
 		t.Errorf("reload on empty = %+v", p)
 	}
 
-	b.Navigate(ctx, srv.URL+"/md")
-	p := b.Navigate(ctx, srv.URL+"/md2")
+	b.Navigate(ctx, 1, srv.URL+"/md")
+	p := b.Navigate(ctx, 1, srv.URL+"/md2")
 	if !p.CanBack || p.CanForward {
 		t.Errorf("state after two visits: %+v", p)
 	}
 
-	p = b.Back(ctx)
+	p = b.Back(ctx, 1)
 	if p.Title != "Doc" || p.CanBack || !p.CanForward {
 		t.Errorf("back = %+v", p)
 	}
-	if p = b.Reload(ctx); p.Title != "Doc" || p.CanBack {
+	if p = b.Reload(ctx, 1); p.Title != "Doc" || p.CanBack {
 		t.Errorf("reload = %+v", p)
 	}
-	p = b.Forward(ctx)
+	p = b.Forward(ctx, 1)
 	if p.Title != "Two" || !p.CanBack || p.CanForward {
 		t.Errorf("forward = %+v", p)
 	}
-	if p = b.Forward(ctx); p.Kind != page.KindError || p.URL != srv.URL+"/md2" {
+	if p = b.Forward(ctx, 1); p.Kind != page.KindError || p.URL != srv.URL+"/md2" {
 		t.Errorf("forward at end = %+v", p)
 	}
 }
@@ -99,11 +99,11 @@ func TestHistoryRecordsSuccessfulLoadsOnly(t *testing.T) {
 	b := New(history.Open(""), fetch.NewFetcher(nil, nil))
 	ctx := context.Background()
 
-	b.Navigate(ctx, srv.URL+"/md")
-	b.Navigate(ctx, srv.URL+"/missing")
-	b.Navigate(ctx, srv.URL+"/html")
-	b.Back(ctx) // lands on the failed entry: not recorded
-	b.Reload(ctx)
+	b.Navigate(ctx, 1, srv.URL+"/md")
+	b.Navigate(ctx, 1, srv.URL+"/missing")
+	b.Navigate(ctx, 1, srv.URL+"/html")
+	b.Back(ctx, 1) // lands on the failed entry: not recorded
+	b.Reload(ctx, 1)
 
 	got := b.History()
 	if len(got) != 2 || got[0].Title != "Plain" || got[1].URL != srv.URL+"/md" || got[1].Title != "Doc" {
@@ -118,7 +118,7 @@ func TestHistoryRecordsSuccessfulLoadsOnly(t *testing.T) {
 func TestNavigateFeed(t *testing.T) {
 	srv := testServer()
 	defer srv.Close()
-	p := New(history.Open(""), fetch.NewFetcher(nil, nil)).Navigate(context.Background(), srv.URL+"/feed")
+	p := New(history.Open(""), fetch.NewFetcher(nil, nil)).Navigate(context.Background(), 1, srv.URL+"/feed")
 	if p.Kind != page.KindMarkdown || p.Title != "Feed" || !strings.Contains(p.HTML, "<strong>hi</strong>") || !strings.Contains(p.Source, "<rss>") {
 		t.Errorf("feed page = %+v", p)
 	}
@@ -129,9 +129,9 @@ func TestFullHistory(t *testing.T) {
 	defer srv.Close()
 	b := New(history.Open(""), fetch.NewFetcher(nil, nil))
 	ctx := context.Background()
-	b.Navigate(ctx, srv.URL+"/md")
+	b.Navigate(ctx, 1, srv.URL+"/md")
 
-	p := b.FullHistory(ctx)
+	p := b.FullHistory(ctx, 1)
 	if p.Kind != page.KindMarkdown || p.Title != "History" || !strings.Contains(p.HTML, srv.URL+"/md") || !strings.Contains(p.HTML, "Doc") {
 		t.Errorf("history page = %+v", p)
 	}
@@ -160,7 +160,7 @@ func TestUnauthorizedPageOffersOrigin(t *testing.T) {
 	b := New(history.Open(""), fetch.NewFetcher(mgr, nil))
 	ctx := context.Background()
 
-	p := b.Navigate(ctx, srv.URL)
+	p := b.Navigate(ctx, 1, srv.URL)
 	if p.Kind != page.KindError || p.Origin != srv.URL || p.AuthScheme != "bearer" {
 		t.Fatalf("401 page = %+v", p)
 	}
@@ -168,7 +168,7 @@ func TestUnauthorizedPageOffersOrigin(t *testing.T) {
 	if _, err := mgr.Save(auth.Credential{Origin: srv.URL, Kind: auth.Cookie, Cookie: "sid=ok"}); err != nil {
 		t.Fatal(err)
 	}
-	if p = b.Reload(ctx); p.Kind != page.KindMarkdown || p.Title != "Private" {
+	if p = b.Reload(ctx, 1); p.Kind != page.KindMarkdown || p.Title != "Private" {
 		t.Errorf("after saving credentials: %+v", p)
 	}
 }
@@ -184,8 +184,8 @@ func TestAddressBarBookmarkSearch(t *testing.T) {
 		return "# Found\n\n- [Hit](<https://hit.test/>)\n", nil
 	})
 
-	b.Navigate(context.Background(), srv.URL+"/md")
-	p := b.Navigate(context.Background(), "rust  async")
+	b.Navigate(context.Background(), 1, srv.URL+"/md")
+	p := b.Navigate(context.Background(), 1, "rust  async")
 	if p.Kind != page.KindMarkdown || p.URL != "bookmarks:search?q=rust+async" || !strings.Contains(p.HTML, "https://hit.test/") {
 		t.Fatalf("search page = %+v", p)
 	}
@@ -199,23 +199,54 @@ func TestAddressBarBookmarkSearch(t *testing.T) {
 		t.Errorf("searches must not be recorded as visits: %+v", got)
 	}
 
-	if p := b.Back(context.Background()); !strings.HasSuffix(p.URL, "/md") {
+	if p := b.Back(context.Background(), 1); !strings.HasSuffix(p.URL, "/md") {
 		t.Errorf("Back = %q", p.URL)
 	}
-	if p := b.Forward(context.Background()); p.URL != "bookmarks:search?q=rust+async" || p.Kind != page.KindMarkdown {
+	if p := b.Forward(context.Background(), 1); p.URL != "bookmarks:search?q=rust+async" || p.Kind != page.KindMarkdown {
 		t.Errorf("Forward = %+v", p)
 	}
-	if p := b.Reload(context.Background()); p.Kind != page.KindMarkdown || len(queries) != 3 {
+	if p := b.Reload(context.Background(), 1); p.Kind != page.KindMarkdown || len(queries) != 3 {
 		t.Errorf("Reload = %+v, queries %q", p, queries)
 	}
-	if p := b.Navigate(context.Background(), "?"); p.URL != "bookmarks:search?q=" || queries[len(queries)-1] != "" {
+	if p := b.Navigate(context.Background(), 1, "?"); p.URL != "bookmarks:search?q=" || queries[len(queries)-1] != "" {
 		t.Errorf("bare ? = %+v, queries %q", p, queries)
 	}
 }
 
 func TestSearchWithoutBackend(t *testing.T) {
 	b := New(history.Open(""), fetch.NewFetcher(nil, nil))
-	if p := b.Navigate(context.Background(), "anything goes"); p.Kind != page.KindError {
+	if p := b.Navigate(context.Background(), 1, "anything goes"); p.Kind != page.KindError {
 		t.Errorf("want error page, got %+v", p)
+	}
+}
+
+func TestTabsHaveSeparateHistory(t *testing.T) {
+	srv := testServer()
+	defer srv.Close()
+	b := New(history.Open(""), fetch.NewFetcher(nil, nil))
+	ctx := context.Background()
+	one, two := b.NewTab(), b.NewTab()
+	if one == two {
+		t.Fatal("tabs share an id")
+	}
+
+	b.Navigate(ctx, one, srv.URL+"/md")
+	b.Navigate(ctx, one, srv.URL+"/md2")
+	if p := b.Navigate(ctx, two, srv.URL+"/html"); p.CanBack {
+		t.Error("a new tab inherited history from another")
+	}
+	if p := b.Back(ctx, one); !strings.HasSuffix(p.URL, "/md") {
+		t.Errorf("tab one went back to %q", p.URL)
+	}
+	if p := b.Reload(ctx, two); p.Title != "Plain" {
+		t.Errorf("tab two reloaded %q", p.Title)
+	}
+
+	b.CloseTab(one)
+	if p := b.Reload(ctx, one); p.Kind != page.KindError { // starts empty again
+		t.Errorf("closed tab kept its page: %+v", p)
+	}
+	if got := len(b.History()); got == 0 {
+		t.Error("visits from tabs were not recorded in the shared history")
 	}
 }

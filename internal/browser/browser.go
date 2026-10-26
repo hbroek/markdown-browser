@@ -29,16 +29,53 @@ func SearchURL(query string) string { return searchPrefix + url.QueryEscape(quer
 
 func isSearchURL(u string) bool { return strings.HasPrefix(u, searchPrefix) }
 
+// tab is one page with its own back/forward history. Its lock is held while a
+// page loads, so a slow site only holds up its own tab.
+type tab struct {
+	mu    sync.Mutex
+	stack *nav.Stack
+}
+
 type Browser struct {
 	fetcher *fetch.Fetcher
 	search  Searcher
-	mu      sync.Mutex
-	stack   *nav.Stack
 	history *history.Log
+
+	tabMu   sync.Mutex
+	tabs    map[int]*tab
+	nextTab int
 }
 
 func New(log *history.Log, fetcher *fetch.Fetcher) *Browser {
-	return &Browser{stack: nav.NewStack(), history: log, fetcher: fetcher}
+	return &Browser{history: log, fetcher: fetcher, tabs: map[int]*tab{}}
+}
+
+// NewTab opens an empty tab and returns its id. The history is shared by all tabs.
+func (b *Browser) NewTab() int {
+	b.tabMu.Lock()
+	defer b.tabMu.Unlock()
+	b.nextTab++
+	b.tabs[b.nextTab] = &tab{stack: nav.NewStack()}
+	return b.nextTab
+}
+
+// CloseTab forgets the tab's back/forward history.
+func (b *Browser) CloseTab(id int) {
+	b.tabMu.Lock()
+	defer b.tabMu.Unlock()
+	delete(b.tabs, id)
+}
+
+// tab returns the tab with this id, creating it if it is not known yet.
+func (b *Browser) tab(id int) *tab {
+	b.tabMu.Lock()
+	defer b.tabMu.Unlock()
+	t, ok := b.tabs[id]
+	if !ok {
+		t = &tab{stack: nav.NewStack()}
+		b.tabs[id] = t
+	}
+	return t
 }
 
 // SetSearcher enables bookmark searches typed into the address bar.
@@ -50,14 +87,15 @@ func (b *Browser) History() []history.Entry { return b.history.Entries() }
 func (b *Browser) ClearHistory() { b.history.Clear() }
 
 // FullHistory writes the visit log as a markdown file and opens it.
-func (b *Browser) FullHistory(ctx context.Context) page.Page {
+func (b *Browser) FullHistory(ctx context.Context, tabID int) page.Page {
 	path, err := b.history.WriteMarkdown()
 	if err != nil {
-		b.mu.Lock()
-		defer b.mu.Unlock()
-		return b.withState(page.Page{Kind: page.KindError, Error: "cannot write history: " + err.Error()})
+		t := b.tab(tabID)
+		t.mu.Lock()
+		defer t.mu.Unlock()
+		return t.withState(page.Page{Kind: page.KindError, Error: "cannot write history: " + err.Error()})
 	}
-	return b.Navigate(ctx, path)
+	return b.Navigate(ctx, tabID, path)
 }
 
 // record adds a successfully loaded page to the visit log.
@@ -69,53 +107,57 @@ func (b *Browser) record(p page.Page) page.Page {
 }
 
 // Navigate loads rawURL and makes it the current entry.
-func (b *Browser) Navigate(ctx context.Context, rawURL string) page.Page {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+func (b *Browser) Navigate(ctx context.Context, tabID int, rawURL string) page.Page {
+	t := b.tab(tabID)
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	if q, ok := fetch.SearchQuery(rawURL); ok {
 		rawURL = SearchURL(q)
 	}
 	p := b.load(ctx, rawURL)
-	b.stack.Visit(p.URL)
-	return b.withState(b.record(p))
+	t.stack.Visit(p.URL)
+	return t.withState(b.record(p))
 }
 
 // Reload fetches the current entry again.
-func (b *Browser) Reload(ctx context.Context) page.Page {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	cur := b.stack.Current()
+func (b *Browser) Reload(ctx context.Context, tabID int) page.Page {
+	t := b.tab(tabID)
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	cur := t.stack.Current()
 	if cur == "" {
-		return b.withState(page.Page{Kind: page.KindError, Error: "nothing to reload"})
+		return t.withState(page.Page{Kind: page.KindError, Error: "nothing to reload"})
 	}
-	return b.withState(b.load(ctx, cur))
+	return t.withState(b.load(ctx, cur))
 }
 
 // Back loads the previous entry.
-func (b *Browser) Back(ctx context.Context) page.Page {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	u, ok := b.stack.Back()
+func (b *Browser) Back(ctx context.Context, tabID int) page.Page {
+	t := b.tab(tabID)
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	u, ok := t.stack.Back()
 	if !ok {
-		return b.withState(page.Page{URL: b.stack.Current(), Kind: page.KindError, Error: "no earlier page"})
+		return t.withState(page.Page{URL: t.stack.Current(), Kind: page.KindError, Error: "no earlier page"})
 	}
-	return b.withState(b.record(b.load(ctx, u)))
+	return t.withState(b.record(b.load(ctx, u)))
 }
 
 // Forward loads the next entry.
-func (b *Browser) Forward(ctx context.Context) page.Page {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	u, ok := b.stack.Forward()
+func (b *Browser) Forward(ctx context.Context, tabID int) page.Page {
+	t := b.tab(tabID)
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	u, ok := t.stack.Forward()
 	if !ok {
-		return b.withState(page.Page{URL: b.stack.Current(), Kind: page.KindError, Error: "no later page"})
+		return t.withState(page.Page{URL: t.stack.Current(), Kind: page.KindError, Error: "no later page"})
 	}
-	return b.withState(b.record(b.load(ctx, u)))
+	return t.withState(b.record(b.load(ctx, u)))
 }
 
-func (b *Browser) withState(p page.Page) page.Page {
-	p.CanBack = b.stack.CanBack()
-	p.CanForward = b.stack.CanForward()
+func (t *tab) withState(p page.Page) page.Page {
+	p.CanBack = t.stack.CanBack()
+	p.CanForward = t.stack.CanForward()
 	return p
 }
 

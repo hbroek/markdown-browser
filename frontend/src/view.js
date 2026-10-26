@@ -18,6 +18,8 @@ function originOf(url) {
 export function welcome() {
     const shortcuts = [
         ['Ctrl/Cmd + L', 'Focus the address bar'],
+        ['Ctrl/Cmd + T / W', 'New tab / close tab'],
+        ['Ctrl + Tab, Ctrl/Cmd + 1-9', 'Switch tabs'],
         ['Ctrl/Cmd + R', 'Reload'],
         ['Alt + ← / →', 'Back / forward'],
         ['Ctrl/Cmd + U', 'Toggle markdown source'],

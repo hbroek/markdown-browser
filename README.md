@@ -14,10 +14,11 @@ title plus link list when a page is not markdown. Go backend, HTML/CSS/JS fronte
 - `http`, `https` and `file://`; drop a `.md` file on the window to open it. Relative links and images work,
   including local images for pages opened from disk
 - **Full history…** in the history menu generates a markdown page of everything you visited
+- Tabs, each with its own back/forward history; open tabs are restored on the next start (only the selected one is loaded right away). Cmd/Ctrl+click or middle-click a link to open it in a background tab; click a bookmark with Cmd/Ctrl, or right-click it, to open it in a new tab.
 - A network console (hidden by default; `>_` button or Cmd/Ctrl+J) lists every request with its status code;
   click the bar to see request and response headers, timing and size. Cookie and token values are hidden
 - Bookmarks with folders, descriptions and keywords: see below
-- Light and dark themes: follows the OS by default; the ◐ toolbar button cycles System, Light and Dark
+- The ☰ menu at the far right holds Site credentials, the theme (follow the OS by default, or Light or Dark) and the color scheme: Violet (default), Ocean, Forest, Sunset, Rose or Graphite
 - Sites that need a login: see below
 
 | Shortcut | Action |
@@ -29,6 +30,8 @@ title plus link list when a page is not markdown. Go backend, HTML/CSS/JS fronte
 | Cmd/Ctrl+D | Add or edit the bookmark for this page |
 | Cmd/Ctrl+B | Open the bookmarks panel and move into it (again to close it) |
 | Cmd/Ctrl+J | Show / hide the network console |
+| Cmd/Ctrl+T, Cmd/Ctrl+W | New tab, close tab |
+| Ctrl+Tab / Ctrl+Shift+Tab, Cmd/Ctrl+Shift+[ / ], Cmd/Ctrl+1–9 | Switch tabs (9 is the last) |
 
 ## Bookmarks
 
@@ -62,7 +65,7 @@ title plus link list when a page is not markdown. Go backend, HTML/CSS/JS fronte
 
 ## Sites that need a login
 
-Click the key button (🔑), or the button on a 401/403 page, and add a credential for a site:
+Open **Site credentials** in the ☰ menu (it is highlighted when the current site has one saved), or use the button on a 401/403 page, and add a credential for a site:
 
 - **Cookies**: paste the `Cookie` request header from your browser's dev tools, or import a `cookies.txt`
   export (any "cookies.txt" browser extension) for that site. Only the cookies for the site you enter are kept.
@@ -133,8 +136,7 @@ For the release workflow, add these repository secrets (Settings > Secrets and v
 
 Planned, in this order:
 
-1. **Tabs.** Several pages open at once, each with its own back/forward history, with Cmd/Ctrl+T, W and Tab to open, close and switch.
-2. **AI assistance.** Summarize the current page, and suggest a bookmark's description and keywords. Page text is sent to the chosen provider, so the app will say which one is active and ask before the first cloud call. Providers are pluggable, like bookmark storage, and API keys live in the OS keychain:
+1. **AI assistance.** Summarize the current page, and suggest a bookmark's description and keywords. Page text is sent to the chosen provider, so the app will say which one is active and ask before the first cloud call. Providers are pluggable, like bookmark storage, and API keys live in the OS keychain:
    - **Claude** (Anthropic Messages API), first.
    - **OpenAI-compatible** endpoints with a configurable base URL, which covers OpenAI, Gemini, Llama hosts and local servers such as Ollama.
    - **Apple on-device models** (macOS) through `fm serve`, which exposes them at `http://127.0.0.1:1976/v1/chat/completions`. It uses the same OpenAI-compatible provider, so no native code is needed and nothing leaves the machine.

@@ -69,7 +69,7 @@ function folderRow(f, depth) {
 }
 
 function bookmarkRow(b, depth) {
-    const go = () => onOpenUrl(b.url);
+    const go = (e) => onOpenUrl(b.url, Boolean(e?.metaKey || e?.ctrlKey)); // Cmd/Ctrl+click: new tab
     const edit = () => openBookmark({bookmark: b});
     const label = el('button', {
         type: 'button',
@@ -82,6 +82,10 @@ function bookmarkRow(b, depth) {
     // One level in, so the title lines up under folder names rather than their carets.
     const row = newRow(`b:${b.id}`, b.folderId, depth + 1, label, pencil(`Edit bookmark ${b.title}`, edit));
     row.setAttribute('aria-label', b.title);
+    row.addEventListener('contextmenu', (e) => { // right click: open in a new tab
+        e.preventDefault();
+        onOpenUrl(b.url, true);
+    });
     actions.set(row, {folder: false, activate: go, edit, drag: {bookmark: b}});
     return row;
 }
