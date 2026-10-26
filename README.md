@@ -138,7 +138,7 @@ Planned, in this order:
 3. **AI assistance.** Summarize the current page, and suggest a bookmark's description and keywords. Page text is sent to the chosen provider, so the app will say which one is active and ask before the first cloud call. Providers are pluggable, like bookmark storage, and API keys live in the OS keychain:
    - **Claude** (Anthropic Messages API), first.
    - **OpenAI-compatible** endpoints with a configurable base URL, which covers OpenAI, Gemini, Llama hosts and local servers such as Ollama.
-   - **Apple on-device models** (macOS only), last, since they need a native shim.
+   - **Apple on-device models** (macOS) through `fm serve`, which exposes them at `http://127.0.0.1:1976/v1/chat/completions`. It uses the same OpenAI-compatible provider, so no native code is needed and nothing leaves the machine.
 
 ## Layout
 
