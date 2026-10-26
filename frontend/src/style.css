@@ -277,6 +277,8 @@ button.danger.armed { background: var(--bad); color: #fff; }
 #bookmarks-tree { flex: 1; overflow: auto; padding: 4px 0; font-size: 0.9em; }
 .tree-row { display: flex; align-items: center; gap: 4px; padding-right: 6px; }
 .tree-row:hover { background: var(--hover); }
+.tree-row:focus { outline: none; }
+.tree-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--hover); }
 .tree-label {
     flex: 1;
     min-width: 0;
@@ -356,3 +358,9 @@ button.danger.armed { background: var(--bad); color: #fff; }
 .markdown th { background: var(--code-bg); }
 .markdown hr { height: 2px; border: 0; background: var(--grad); opacity: 0.6; }
 a:hover { color: var(--accent2); }
+
+.panel-foot { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px; border-top: 1px solid var(--border); }
+.panel-foot button { padding: 2px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); font: inherit; font-size: 0.85em; cursor: pointer; }
+#bookmarks-msg { flex-basis: 100%; min-height: 1.2em; font-size: 0.8em; color: var(--muted); overflow-wrap: anywhere; }
+#bookmarks-msg:empty { display: none; }
+#bookmarks-msg.error-text { color: var(--bad); }

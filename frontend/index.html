@@ -29,7 +29,13 @@
             <button type="button" id="folder-new" title="New folder">New folder</button>
             <button type="button" id="bookmarks-close" title="Hide bookmarks (Ctrl/Cmd+B)">&times;</button>
         </div>
-        <div id="bookmarks-tree" role="tree"></div>
+        <div id="bookmarks-tree" role="tree" aria-label="Bookmarks"></div>
+        <div class="panel-foot">
+            <button type="button" id="bookmarks-import" title="Add bookmarks from an HTML export or a markdown list">Import&hellip;</button>
+            <button type="button" id="bookmarks-export" title="Save all bookmarks as a browser-compatible HTML file">Export HTML&hellip;</button>
+            <button type="button" id="bookmarks-export-md" title="Save all bookmarks as a markdown list">Export Markdown&hellip;</button>
+            <span id="bookmarks-msg" role="status"></span>
+        </div>
     </aside>
     <main id="content"></main>
 </div>

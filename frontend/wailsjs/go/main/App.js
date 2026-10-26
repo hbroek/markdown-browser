@@ -46,6 +46,10 @@ export function DeleteCredential(arg1) {
   return window['go']['main']['App']['DeleteCredential'](arg1);
 }
 
+export function ExportBookmarks(arg1) {
+  return window['go']['main']['App']['ExportBookmarks'](arg1);
+}
+
 export function Forward() {
   return window['go']['main']['App']['Forward']();
 }
@@ -56,6 +60,10 @@ export function FullHistory() {
 
 export function History() {
   return window['go']['main']['App']['History']();
+}
+
+export function ImportBookmarks() {
+  return window['go']['main']['App']['ImportBookmarks']();
 }
 
 export function ImportCookiesTxt(arg1, arg2) {

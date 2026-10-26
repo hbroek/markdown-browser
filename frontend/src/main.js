@@ -4,7 +4,7 @@ import {OnFileDrop} from '../wailsjs/runtime/runtime';
 import * as view from './view.js';
 import {initConsole, toggleConsole} from './console.js';
 import {initBookmarks, openBookmark} from './bookmarks.js';
-import {initPanel, togglePanel, refreshPanel} from './bookmarkpanel.js';
+import {initPanel, panelShortcut, refreshPanel} from './bookmarkpanel.js';
 import {initCredentials, openCredentials, credentialOrigins} from './creds.js';
 
 const $ = (id) => document.getElementById(id);
@@ -135,7 +135,7 @@ document.addEventListener('keydown', (e) => {
     else if (mod && key === 'r') { if (current?.url) go(Reload); }
     else if (mod && key === 'u') toggleSource();
     else if (mod && key === 'j') toggleConsole();
-    else if (mod && key === 'b') togglePanel();
+    else if (mod && key === 'b') panelShortcut();
     else if (mod && key === 'd') { if (current?.url && !isSearch(current.url)) openBookmarkDialog(); }
     else if (e.altKey && e.key === 'ArrowLeft' || mod && e.key === '[') { if (!$('back').disabled) go(Back); }
     else if (e.altKey && e.key === 'ArrowRight' || mod && e.key === ']') { if (!$('forward').disabled) go(Forward); }
@@ -185,7 +185,7 @@ function openBookmarkDialog() {
 }
 bookmarkBtn.addEventListener('click', openBookmarkDialog);
 initBookmarks(() => { updateBookmarkIndicator(); refreshPanel(); });
-initPanel((url) => go(() => Navigate(url)));
+initPanel((url) => go(() => Navigate(url)), updateBookmarkIndicator);
 
 initConsole();
 render();

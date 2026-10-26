@@ -27,7 +27,7 @@ title plus link list when a page is not markdown. Go backend, HTML/CSS/JS fronte
 | Alt+← / Alt+→ (Cmd+[ / Cmd+] on Mac) | Back / forward |
 | Cmd/Ctrl+U | Toggle markdown source |
 | Cmd/Ctrl+D | Add or edit the bookmark for this page |
-| Cmd/Ctrl+B | Show / hide the bookmarks panel |
+| Cmd/Ctrl+B | Open the bookmarks panel and move into it (again to close it) |
 | Cmd/Ctrl+J | Show / hide the network console |
 
 ## Bookmarks
@@ -35,10 +35,22 @@ title plus link list when a page is not markdown. Go backend, HTML/CSS/JS fronte
 - The ribbon next to the address bar saves the current page (filled when it is already saved). The dialog takes a
   title, address, description, keywords and a folder. The panel button at the far left (Cmd/Ctrl+B) shows folders
   and bookmarks as a tree; the pencil on a row edits or deletes it, and **New folder** adds folders.
+  In the panel, use ↑/↓ to move, → / ← to open and close folders, Enter to open a bookmark, **e** to edit and
+  Esc to go back to the address bar.
 - **Search** by typing in the address bar: several words (`rust async`), a single bare word (`rust`), or anything
   starting with `?` (`?go.dev`; a bare `?` lists everything). Every word must match the title, address,
   description or a keyword. Pages from your browsing history that match (title or address) are merged in
   after the bookmarks, without repeating a bookmarked page. Anything with a dot, colon or slash, like `example.com`, is an address instead.
+- **Import / Export** (bottom of the panel) read and write browser-compatible HTML bookmark files (Chrome, Firefox,
+  Safari and others) and markdown lists. Importing merges folders by name and leaves pages you already saved alone.
+  Markdown exports look like this, and hand-written files in the same shape import too (headings also work as
+  folders):
+
+  ```markdown
+  - **Dev**
+    - [Go](<https://go.dev/>) — The Go site
+      Keywords: lang, go
+  ```
 - Bookmarks live in a local SQLite file, `bookmarks.db`, in the app's config folder. The storage is pluggable
   (`internal/bookmarks`): to choose a backend or move the file, add a `settings.json` next to it:
 

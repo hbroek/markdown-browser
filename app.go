@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -226,4 +227,71 @@ func (a *App) searchPage(ctx context.Context, query string) (string, error) {
 		return "", err
 	}
 	return bookmarks.SearchMarkdown(query, results, a.matchingVisits(strings.Fields(query)), folders), nil
+}
+
+// maxImportBytes bounds the bookmark file read on import.
+const maxImportBytes = 64 << 20
+
+// ImportBookmarks asks for a bookmark file and adds its folders and
+// bookmarks: an HTML export from any browser, or a markdown list (.md,
+// .markdown, .txt; see internal/bookmarks/markdown_io.go). Canceling the
+// dialog is not an error; the result says so.
+func (a *App) ImportBookmarks() (bookmarks.ImportResult, error) {
+	s, err := a.store()
+	if err != nil {
+		return bookmarks.ImportResult{}, err
+	}
+	path, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:   "Import bookmarks",
+		Filters: []runtime.FileFilter{{DisplayName: "Bookmark files (*.html, *.htm, *.md)", Pattern: "*.html;*.htm;*.md;*.markdown;*.txt"}},
+	})
+	if err != nil || path == "" {
+		return bookmarks.ImportResult{Canceled: err == nil}, err
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return bookmarks.ImportResult{}, err
+	}
+	defer f.Close()
+	parse := bookmarks.ParseNetscape
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".md", ".markdown", ".txt":
+		parse = bookmarks.ParseMarkdown
+	}
+	root, err := parse(io.LimitReader(f, maxImportBytes))
+	if err != nil {
+		return bookmarks.ImportResult{}, err
+	}
+	return bookmarks.Import(a.bookmarkCtx(), s, root)
+}
+
+// ExportBookmarks asks where to save and writes every bookmark as an HTML
+// bookmark file (format "html") or a markdown list ("markdown"). It returns
+// the path, or "" when the dialog was canceled.
+func (a *App) ExportBookmarks(format string) (string, error) {
+	s, err := a.store()
+	if err != nil {
+		return "", err
+	}
+	name, pattern, export := "bookmarks.html", "*.html", bookmarks.ExportNetscape
+	switch format {
+	case "html":
+	case "markdown":
+		name, pattern, export = "bookmarks.md", "*.md", bookmarks.ExportMarkdown
+	default:
+		return "", fmt.Errorf("unknown export format %q", format)
+	}
+	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:           "Export bookmarks",
+		DefaultFilename: name,
+		Filters:         []runtime.FileFilter{{DisplayName: "Bookmark files (" + pattern + ")", Pattern: pattern}},
+	})
+	if err != nil || path == "" {
+		return "", err
+	}
+	out, err := export(a.bookmarkCtx(), s)
+	if err != nil {
+		return "", err
+	}
+	return path, os.WriteFile(path, []byte(out), 0o644)
 }

@@ -105,6 +105,26 @@ export namespace bookmarks {
 	        this.name = source["name"];
 	    }
 	}
+	export class ImportResult {
+	    folders: number;
+	    bookmarks: number;
+	    duplicates: number;
+	    skipped: number;
+	    canceled: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ImportResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.folders = source["folders"];
+	        this.bookmarks = source["bookmarks"];
+	        this.duplicates = source["duplicates"];
+	        this.skipped = source["skipped"];
+	        this.canceled = source["canceled"];
+	    }
+	}
 
 }
 

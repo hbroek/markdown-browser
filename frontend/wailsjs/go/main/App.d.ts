@@ -28,11 +28,15 @@ export function DeleteBookmarkFolder(arg1:string):Promise<void>;
 
 export function DeleteCredential(arg1:string):Promise<void>;
 
+export function ExportBookmarks(arg1:string):Promise<string>;
+
 export function Forward():Promise<page.Page>;
 
 export function FullHistory():Promise<page.Page>;
 
 export function History():Promise<Array<history.Entry>>;
+
+export function ImportBookmarks():Promise<bookmarks.ImportResult>;
 
 export function ImportCookiesTxt(arg1:string,arg2:string):Promise<number>;
 
