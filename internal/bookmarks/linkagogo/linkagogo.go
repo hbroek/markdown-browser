@@ -149,7 +149,7 @@ func (s *Store) call(ctx context.Context, method, path string, query url.Values,
 		s.authorize(req)
 	}
 	if req.Header.Get("Authorization") == "" {
-		return nil, fmt.Errorf("no LinkaGoGo API key: save a Bearer token for %s with the key button", s.origin)
+		return nil, fmt.Errorf("no LinkaGoGo API key could be read for %s: open Bookmark storage (the gear in the bookmarks panel) and enter the key again", s.origin)
 	}
 	resp, err := s.client.Do(req)
 	if err != nil {

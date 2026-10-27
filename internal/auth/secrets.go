@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/zalando/go-keyring"
 )
@@ -26,7 +27,7 @@ type Secrets interface {
 type KeyringStore struct{}
 
 func (KeyringStore) Get(name string) (string, error) {
-	v, err := keyring.Get(service, name)
+	v, err := callKeyring(func() (string, error) { return keyring.Get(service, name) })
 	if errors.Is(err, keyring.ErrNotFound) {
 		return "", ErrNotFound
 	}
@@ -34,7 +35,52 @@ func (KeyringStore) Get(name string) (string, error) {
 }
 
 func (KeyringStore) Set(name, value string) error {
-	return explainKeyring(keyring.Set(service, name, value))
+	_, err := callKeyring(func() (struct{}, error) { return struct{}{}, keyring.Set(service, name, value) })
+	return explainKeyring(err)
+}
+
+// keyringTimeout is how long a keyring call may take. A locked Linux keyring waits
+// for someone to answer an unlock prompt, which may be hidden behind a window or never
+// shown; without a limit the whole app waits with it.
+var keyringTimeout = 30 * time.Second
+
+var keyringDown struct {
+	mu    sync.Mutex
+	until time.Time
+}
+
+// keyringSilent is what to do when the keyring did not answer in time.
+const keyringSilent = "the system keyring did not answer. A password prompt to unlock it may be waiting behind this window " +
+	"(look in the taskbar), or the keyring is not running. Unlock the \"login\" keyring in \"Passwords and Keys\" (Seahorse), then try again"
+
+// callKeyring runs one keyring call and gives up after keyringTimeout. After a timeout,
+// calls fail at once for a minute, so every request does not wait out its own timeout.
+func callKeyring[T any](fn func() (T, error)) (T, error) {
+	var zero T
+	keyringDown.mu.Lock()
+	down := time.Now().Before(keyringDown.until)
+	keyringDown.mu.Unlock()
+	if down {
+		return zero, errors.New(keyringSilent)
+	}
+	type result struct {
+		v   T
+		err error
+	}
+	done := make(chan result, 1) // buffered: a call that finishes late must not block
+	go func() {
+		v, err := fn()
+		done <- result{v, err}
+	}()
+	select {
+	case r := <-done:
+		return r.v, r.err
+	case <-time.After(keyringTimeout):
+		keyringDown.mu.Lock()
+		keyringDown.until = time.Now().Add(time.Minute)
+		keyringDown.mu.Unlock()
+		return zero, errors.New(keyringSilent)
+	}
 }
 
 // explainKeyring adds what to do when the Linux Secret Service is missing,
@@ -56,7 +102,7 @@ func explainKeyring(err error) error {
 }
 
 func (KeyringStore) Delete(name string) error {
-	err := keyring.Delete(service, name)
+	_, err := callKeyring(func() (struct{}, error) { return struct{}{}, keyring.Delete(service, name) })
 	if errors.Is(err, keyring.ErrNotFound) {
 		return nil
 	}

@@ -302,7 +302,7 @@ func TestAuthErrors(t *testing.T) {
 
 	// No credential saved: fail before touching the network.
 	s, _ := New(cfg, bookmarks.Deps{})
-	if _, err := s.Folders(t.Context()); err == nil || !strings.Contains(err.Error(), "Bearer token") {
+	if _, err := s.Folders(t.Context()); err == nil || !strings.Contains(err.Error(), "enter the key again") {
 		t.Errorf("no key: %v", err)
 	}
 	if f.requests != 0 {
