@@ -74,8 +74,8 @@ function heading(text) {
 
 const span = (className, text = '') => Object.assign(document.createElement('span'), {className, textContent: text});
 
-/** `openCredentials()` and `openAI()` are called from the menu's first entries. */
-export function initMenu(openCredentials, openAI) {
+/** `actions` has the functions behind the menu's first entries: credentials, ai, history and clearHistory. */
+export function initMenu(actions) {
     const btn = $('menu');
     const menu = $('settings-menu');
 
@@ -86,11 +86,15 @@ export function initMenu(openCredentials, openAI) {
 
     function build() {
         const creds = item('menuitem', credentials.saved ? 'Site credentials (saved for this site)' : 'Site credentials\u2026', null,
-            () => { close(); openCredentials(); }, span('menu-icon', '\u{1F511}'));
-        const aiEntry = item('menuitem', 'AI assistant\u2026', null, () => { close(); openAI(); }, span('menu-icon', '\u2728'));
+            () => { close(); actions.credentials(); }, span('menu-icon', '\u{1F511}'));
+        const aiEntry = item('menuitem', 'AI assistant\u2026', null, () => { close(); actions.ai(); }, span('menu-icon', '\u2728'));
+        const historyEntry = item('menuitem', 'History', null, () => { close(); actions.history(); }, span('menu-icon', '\u{1F552}'));
+        const clearEntry = item('menuitem', 'Clear history', null, async () => { close(); await actions.clearHistory(); }, span('menu-icon', '\u{1F9F9}'));
         menu.replaceChildren(
             creds,
             aiEntry,
+            historyEntry,
+            clearEntry,
             heading('Theme'),
             ...themes.map((t) => item('menuitemradio', t.name, t.id === theme, () => { applyTheme(t.id); build(); }, span('menu-icon', t.icon))),
             heading('Color scheme'),

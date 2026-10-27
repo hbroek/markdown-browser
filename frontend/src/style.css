@@ -529,3 +529,30 @@ dialog .stack[hidden] { display: none; } /* display: flex would otherwise win ov
 .search-switch { margin: 0 auto 12px; display: block; padding: 4px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); font: inherit; font-size: 0.85em; cursor: pointer; }
 .search-switch:hover { background: var(--hover); }
 .new-folder { border-color: var(--accent); }
+
+/* reading tools menu */
+#reading-menu { right: 0; min-width: 18rem; }
+.menu-row:disabled { color: var(--muted); cursor: default; }
+.menu-row:disabled:hover { background: none; }
+.menu-line { display: flex; align-items: center; gap: 4px; }
+.menu-line .menu-row { width: auto; flex: none; white-space: nowrap; }
+.menu-line select { flex: 1; min-width: 0; margin-right: 6px; padding: 3px 4px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); font: inherit; font-size: 0.9em; }
+
+/* copy markdown: a zero-height sticky bar, so the button floats at the top right of the page */
+.copy-bar { position: sticky; top: 0; height: 0; z-index: 5; text-align: right; }
+.copy-md {
+    position: relative;
+    top: -12px;
+    padding: 3px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.8em;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+#content:hover .copy-md, .copy-md:focus-visible, .copy-md.done { opacity: 1; }
+.copy-md:hover { color: var(--fg); background: var(--hover); }

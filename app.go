@@ -20,6 +20,8 @@ import (
 	"markdown-browser/internal/cookies"
 	"markdown-browser/internal/fetch"
 	"markdown-browser/internal/history"
+	"markdown-browser/internal/imgproxy"
+	"markdown-browser/internal/localfile"
 	"markdown-browser/internal/page"
 	"markdown-browser/internal/settings"
 
@@ -521,4 +523,15 @@ func (a *App) BookmarksUnder(folderID string) ([]BookmarkItem, error) {
 		return nil, fmt.Errorf("%w: folder %s", bookmarks.ErrNotFound, folderID)
 	}
 	return out, walk(folderID, start)
+}
+
+// assetHandler answers the webview's requests for images: files on disk for pages
+// opened from disk, and web images that need this app's credentials or plain http.
+func (a *App) assetHandler() http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle(imgproxy.Prefix, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		imgproxy.Handler(a.fetcher).ServeHTTP(w, r) // the fetcher exists once NewApp has run
+	}))
+	mux.Handle("/", localfile.Handler)
+	return mux
 }

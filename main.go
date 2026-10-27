@@ -3,7 +3,6 @@ package main
 import (
 	"embed"
 
-	"markdown-browser/internal/localfile"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -30,7 +29,7 @@ func main() {
 		Height: 768,
 		AssetServer: &assetserver.Options{
 			Assets:  assets,
-			Handler: localfile.Handler,
+			Handler: app.assetHandler(),
 		},
 		BackgroundColour: &options.RGBA{R: 15, G: 13, B: 26, A: 1},
 		DragAndDrop: &options.DragAndDrop{

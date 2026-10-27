@@ -21,13 +21,13 @@
     <button id="reload" title="Reload" disabled>&#8635;</button>
     <button id="bookmark-add" title="Add bookmark (Ctrl/Cmd+D)" aria-haspopup="dialog" disabled><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M6 3.5h12v17l-6-4.2-6 4.2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button>
     <input id="address" type="text" spellcheck="false" placeholder="Enter a URL, search bookmarks and history, or @ to search by meaning" autocomplete="off"/>
-    <div class="menu-wrap">
-        <button id="history" title="History" aria-haspopup="true" aria-expanded="false">&#9662;</button>
-        <div id="history-menu" class="menu" hidden></div>
-    </div>
-    <button id="console-toggle" title="Show console (Ctrl/Cmd+J)" aria-pressed="false">&gt;_</button>
     <button id="summarize" title="Summarize this page with AI" aria-label="Summarize this page" disabled>&#10024;</button>
+    <div class="menu-wrap">
+        <button id="reading" title="Reading tools: outline, translate, digest, explain a selection" aria-haspopup="true" aria-expanded="false" aria-label="Reading tools" disabled>&#128214;</button>
+        <div id="reading-menu" class="menu settings-menu" role="menu" hidden></div>
+    </div>
     <button id="ask-toggle" title="Ask this page (Ctrl/Cmd+Shift+A)" aria-label="Ask this page" aria-pressed="false">&#128172;</button>
+    <button id="console-toggle" title="Show console (Ctrl/Cmd+J)" aria-pressed="false">&gt;_</button>
     <button id="source" title="Show source" disabled>&lt;/&gt;</button>
     <div class="menu-wrap">
         <button id="menu" title="Menu" aria-haspopup="true" aria-expanded="false" aria-label="Menu">&#9776;</button>

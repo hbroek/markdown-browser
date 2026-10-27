@@ -6,14 +6,14 @@ title plus link list when a page is not markdown. Go backend, HTML/CSS/JS fronte
 
 ## Features
 
-- Address bar, back, forward, reload, and a history dropdown (saved between runs)
+- Address bar, back, forward, reload, and a history (saved between runs; **History** is in the ☰ menu)
 - Requests `Accept: text/markdown`; renders markdown (GFM tables, task lists, footnotes) as sanitized HTML
 - **Source** button shows the raw markdown
 - Not markdown? Shows the page title and the links found on it
 - RSS and Atom feeds render as a list of posts; an item's `<source:markdown>` is used when present
 - `http`, `https` and `file://`; drop a `.md` file on the window to open it. Relative links and images work,
   including local images for pages opened from disk
-- **Full history…** in the history menu generates a markdown page of everything you visited
+- **History** in the ☰ menu generates a markdown page of everything you visited
 - Tabs, each with its own back/forward history; open tabs are restored on the next start (only the selected one is loaded right away). Cmd/Ctrl+click or middle-click a link to open it in a background tab; click a bookmark with Cmd/Ctrl, or right-click it, to open it in a new tab.
 - A network console (hidden by default; `>_` button or Cmd/Ctrl+J) lists every request with its status code;
   click the bar to see request and response headers, timing and size. Cookie and token values are hidden
@@ -27,6 +27,7 @@ title plus link list when a page is not markdown. Go backend, HTML/CSS/JS fronte
 | Cmd/Ctrl+R | Reload |
 | Alt+← / Alt+→ (Cmd+[ / Cmd+] on Mac) | Back / forward |
 | Cmd/Ctrl+U | Toggle markdown source |
+| Cmd/Ctrl+Shift+C | Copy the page's markdown to the clipboard (the button at the page's top right does the same) |
 | Cmd/Ctrl+D | Add or edit the bookmark for this page |
 | Cmd/Ctrl+B | Open the bookmarks panel and move into it (again to close it) |
 | Cmd/Ctrl+J | Show / hide the network console |
@@ -95,6 +96,12 @@ browsing history (up to 400 entries, the most recent ones, and those sharing wor
 model's reason. Unlike the other features it sends not the text of a page but the **title, address, folder, keywords and description of each
 bookmark and history entry**, so it needs the same permission for servers outside your computer. The results page says what was sent and where. A
 keyword results page has a button to rerun the search by meaning, and the other way round. Searches by meaning are not recorded in history.
+
+**Reading tools** (the book button in the toolbar) work on the page in the active tab. **Outline** lists the page's sections with a line on each;
+**Translate into** a language you pick keeps the headings, lists, links and code and translates the text (up to the first 30,000 characters);
+on a feed, **Digest** groups the entries by topic with links. They appear in the card above the page, like the summary, with a cancel button. Select
+some text first and **Explain the selection** or **Simplify the selection** asks the Ask panel about that passage, so you can follow up and the
+conversation is saved with the page. The page text goes to your AI provider, as for the summary.
 
 **Sort unfiled** (a button in the bookmarks panel footer) asks the AI where the bookmarks that sit in no folder belong. It prefers your
 existing folders and proposes a new one only when nothing fits. It sends the title, address, keywords and description of each unfiled
@@ -193,10 +200,9 @@ post to Mastodon or Bluesky with an app password kept in the keychain), and save
 **AI features**, all through the same provider (see **AI assistant** above), in this order:
 
 1. **More organizing.** Tidy an overgrown folder into subfolders, or propose a folder structure for a messy collection (sorting the unfiled is done).
-2. **Reading tools.** Translate a page, explain or simplify a selection, an outline of long pages, a digest of an RSS feed.
-3. **Compare tabs.** Summarize several open tabs together.
-4. **Save as notes.** Turn the current page into a local markdown summary with a link back.
-5. **Native Claude backend.** The Messages API for Claude-only features such as prompt caching, behind the same provider interface.
+2. **Compare tabs.** Summarize several open tabs together.
+3. **Save as notes.** Turn the current page into a local markdown summary with a link back.
+4. **Native Claude backend.** The Messages API for Claude-only features such as prompt caching, behind the same provider interface.
 
 ## Layout
 

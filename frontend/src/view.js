@@ -58,14 +58,14 @@ export function seconds(ms) {
 
 /** The AI summary shown above a page: loading, the summary, or what went wrong. */
 export function summary(s, onClose, onCancel) {
-    const body = s.state === 'loading' ? el('div', {}, waiting('Reading the page and asking the model'),
+    const body = s.state === 'loading' ? el('div', {}, waiting(s.busy ?? 'Reading the page and asking the model'),
         el('button', {type: 'button', className: 'summary-cancel', textContent: 'Cancel', onclick: onCancel}))
         : s.state === 'error' ? el('p', {className: 'error-text', textContent: s.error})
         : el('div', {className: 'markdown', innerHTML: s.html}); // sanitized by the backend
-    return el('aside', {className: 'summary', ariaLabel: 'AI summary'},
+    return el('aside', {className: 'summary', ariaLabel: s.title ?? 'AI summary'},
         el('div', {className: 'summary-head'},
-            el('strong', {textContent: '\u2728 Summary'}),
-            el('button', {type: 'button', className: 'summary-close', title: 'Close summary', textContent: '\u00D7', onclick: onClose})),
+            el('strong', {textContent: `\u2728 ${s.title ?? 'Summary'}`}),
+            el('button', {type: 'button', className: 'summary-close', title: 'Close', textContent: '\u00D7', onclick: onClose})),
         body,
         s.state === 'done' ? el('p', {className: 'note', textContent: `Written by ${s.source} in ${seconds(s.millis)}; it can be wrong.`}) : '');
 }
@@ -99,18 +99,4 @@ export function error(p, onRetry, onCredentials) {
         needsLogin ? el('button', {className: 'primary', textContent: `Add credentials for ${p.origin}`, onclick: () => onCredentials(p)}) : '',
         p.url ? el('button', {textContent: 'Retry', onclick: onRetry}) : '',
     );
-}
-
-export function historyMenu(entries, onPick, onClear, onFull) {
-    if (!entries.length) {
-        return [el('div', {className: 'menu-empty', textContent: 'No history yet'})];
-    }
-    return [
-        ...entries.map((e) => el('button', {className: 'menu-item', title: e.url, onclick: () => onPick(e.url)},
-            el('span', {className: 'menu-title', textContent: e.title || e.url}),
-            el('span', {className: 'href', textContent: e.url}),
-        )),
-        el('button', {className: 'menu-clear', textContent: 'Full history…', onclick: onFull}),
-        el('button', {className: 'menu-clear', textContent: 'Clear history', onclick: onClear}),
-    ];
 }

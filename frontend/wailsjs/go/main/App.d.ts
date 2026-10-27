@@ -66,6 +66,8 @@ export function NetworkLog():Promise<Array<fetch.Entry>>;
 
 export function NewTab():Promise<number>;
 
+export function ReadPage(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.AISummary>;
+
 export function Reload(arg1:number):Promise<page.Page>;
 
 export function SaveAI(arg1:main.AIInput,arg2:string):Promise<void>;

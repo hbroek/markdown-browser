@@ -227,11 +227,8 @@ func (a *App) fetchPageText(ctx context.Context, rawURL string) (title, text str
 		return "", "", fmt.Errorf("the page answered %d", res.Status)
 	}
 	base, _ := url.Parse(res.URL)
-	if render.IsFeed(res.Body) { // read the entries, not the XML around them
-		if html, feedTitle, ok, err := render.Feed(res.Body, base); err == nil && ok {
-			_, text = render.Text([]byte(html), "text/html")
-			return feedTitle, text, nil
-		}
+	if feedTitle, feedText, ok := render.FeedText(res.Body, base); ok { // the entries with their links, not the XML around them
+		return feedTitle, feedText, nil
 	}
 	if fetch.IsMarkdown(res.ContentType) {
 		if _, t, err := render.Markdown(res.Body, base); err == nil {
@@ -315,6 +312,40 @@ type AIAnswer struct {
 	HTML   string `json:"html"`   // sanitized, for display
 	Source string `json:"source"` // the model, or the provider when no model is set
 	Millis int64  `json:"millis"` // how long the model took to answer
+}
+
+// ReadPage runs one of the reading tools on a page: "outline", "translate"
+// (option is the language) or "digest" (for feeds).
+func (a *App) ReadPage(requestID, rawURL, tool, option string) (AISummary, error) {
+	c, err := a.aiClient()
+	if err != nil {
+		return AISummary{}, err
+	}
+	ctx, done := a.aiContext(requestID)
+	defer done()
+	title, text, err := a.pageText(ctx, rawURL)
+	if err != nil {
+		return AISummary{}, cancelled(ctx, err)
+	}
+	started := time.Now()
+	var reply string
+	switch tool {
+	case "outline":
+		reply, err = ai.Outline(ctx, c, title, rawURL, text)
+	case "translate":
+		reply, err = ai.Translate(ctx, c, option, title, rawURL, text)
+	case "digest":
+		reply, err = ai.Digest(ctx, c, title, rawURL, text)
+	default:
+		err = fmt.Errorf("unknown reading tool %q", tool)
+	}
+	if err != nil {
+		return AISummary{}, cancelled(ctx, err)
+	}
+	took := time.Since(started)
+	base, _ := url.Parse(rawURL)
+	html, _, err := render.Markdown([]byte(reply), base)
+	return AISummary{HTML: html, Source: a.aiSource(), Millis: took.Milliseconds()}, err
 }
 
 // AskPage answers a question about the page, continuing the conversation in history.

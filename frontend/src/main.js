@@ -1,6 +1,6 @@
 import './style.css';
 import './schemes.css';
-import {Navigate, Reload, Back, Forward, History, ClearHistory, FullHistory, BookmarkFor, NewTab, CloseTab, SummarizePage} from '../wailsjs/go/main/App';
+import {Navigate, Reload, Back, Forward, ClearHistory, FullHistory, BookmarkFor, NewTab, CloseTab, SummarizePage, ReadPage} from '../wailsjs/go/main/App';
 import {OnFileDrop} from '../wailsjs/runtime/runtime';
 import * as view from './view.js';
 import {initConsole, toggleConsole} from './console.js';
@@ -12,6 +12,7 @@ import {initOrganize} from './organize.js';
 import {initMenu, showCredentialState} from './theme.js';
 import {initAI, openAI, aiReady, newRequestId, cancelRequest} from './ai.js';
 import {initAsk, refreshAsk, toggleAsk} from './ask.js';
+import {initReading} from './reading.js';
 import {initCredentials, openCredentials, credentialOrigins} from './creds.js';
 
 const $ = (id) => document.getElementById(id);
@@ -40,9 +41,60 @@ function render() {
             : p.kind === 'markdown' ? (showSource ? view.source(p) : view.markdown(p))
             : p.kind === 'fallback' ? view.fallback(p, (origin) => openCredentials({origin}))
             : view.error(p, () => goActive((id) => Navigate(id, p.url)), (page) => openCredentials({origin: page.origin, kind: page.authScheme === 'basic' ? 'basic' : page.authScheme === 'bearer' ? 'bearer' : 'cookie'})));
-    const extras = [searchSwitch(p), active?.summary ? view.summary(active.summary, closeSummary, cancelSummary) : null].filter(Boolean);
+    const extras = [copyBar(p), searchSwitch(p), active?.summary ? view.summary(active.summary, closeSummary, cancelSummary) : null].filter(Boolean);
     content.replaceChildren(...extras, body);
     content.scrollTop = 0;
+}
+
+// --- copy markdown ---
+
+/** The markdown text of the page, when it has any: not a feed, whose source is XML. */
+function markdownSource(p) {
+    if (p?.kind !== 'markdown' || !p.source || /^\s*<(\?xml|rss|feed|rdf:RDF)/i.test(p.source.slice(0, 200))) return '';
+    return p.source;
+}
+
+async function writeClipboard(text) {
+    try {
+        await navigator.clipboard.writeText(text);
+    } catch { // no clipboard permission in this webview: the old way, through a selection
+        const box = Object.assign(document.createElement('textarea'), {value: text});
+        box.style.cssText = 'position:fixed;opacity:0';
+        document.body.append(box);
+        box.select();
+        const ok = document.execCommand('copy');
+        box.remove();
+        if (!ok) throw new Error('the clipboard is not available');
+    }
+}
+
+let copiedTimer = 0;
+
+/** Copies the page's markdown and says so on the button. */
+async function copyMarkdown() {
+    const text = markdownSource(currentPage());
+    if (!text) return;
+    const btn = document.querySelector('.copy-md');
+    try {
+        await writeClipboard(text);
+        if (btn) { btn.textContent = '\u2713 Copied'; btn.classList.add('done'); }
+    } catch (e) {
+        if (btn) btn.textContent = 'Copy failed';
+        console.error(e);
+    }
+    clearTimeout(copiedTimer);
+    copiedTimer = setTimeout(() => { if (btn?.isConnected) { btn.textContent = '\u29C9 Copy markdown'; btn.classList.remove('done'); } }, 1800);
+}
+
+/** A button at the top right of the page, shown while the pointer is over the page. */
+function copyBar(p) {
+    if (!markdownSource(p)) return null;
+    const btn = Object.assign(document.createElement('button'), {
+        type: 'button', className: 'copy-md', textContent: '\u29C9 Copy markdown',
+        title: `Copy the markdown of this page (${isMac ? 'Cmd' : 'Ctrl'}+Shift+C)`,
+    });
+    btn.addEventListener('click', copyMarkdown);
+    return Object.assign(document.createElement('div'), {className: 'copy-bar'}, ).appendChild(btn).parentNode;
 }
 
 // Bookmark searches live at "bookmarks:search?q=..."; show them as typed: "?query".
@@ -267,26 +319,37 @@ function cancelSummary() {
     closeSummary();
 }
 
-async function summarize() {
+/**
+ * Runs an AI tool on the active page and shows the result in the card above it.
+ * `tool` is "summary", "outline", "translate" or "digest".
+ */
+export async function readPage(tool, option = '') {
     const tab = active;
     const url = tab?.page?.url;
     if (!url || $('summarize').disabled) return;
     if (!(await aiReady())) return openAI(); // first use: choose a provider
     const requestId = newRequestId();
-    const mine = {state: 'loading', url, requestId};
+    const label = {
+        summary: ['Summary', 'Reading the page and asking the model'],
+        outline: ['Outline', 'Reading the page and outlining it'],
+        translate: [`Translation into ${option}`, `Translating the page into ${option}`],
+        digest: ['Digest', 'Reading the feed and writing a digest'],
+    }[tool];
+    const mine = {state: 'loading', url, requestId, title: label[0], busy: label[1]};
     tab.summary = mine;
     if (tab === active) render();
     let result;
     try {
-        const r = await SummarizePage(requestId, url);
-        result = {state: 'done', url, html: r.html, source: r.source, millis: r.millis};
+        const r = tool === 'summary' ? await SummarizePage(requestId, url) : await ReadPage(requestId, url, tool, option);
+        result = {state: 'done', url, title: label[0], html: r.html, source: r.source, millis: r.millis};
     } catch (e) {
-        result = {state: 'error', url, error: String(e)};
+        result = {state: 'error', url, title: label[0], error: String(e)};
     }
     if (tab.summary !== mine || tab.page?.url !== url) return; // cancelled or closed, or the tab moved on
     tab.summary = result;
     if (tab === active) render();
 }
+const summarize = () => readPage('summary');
 $('summarize').addEventListener('click', summarize);
 
 function toggleSource() {
@@ -329,36 +392,6 @@ content.addEventListener('auxclick', (e) => { // middle click
     openTab(a.href, {background: true});
 });
 
-// History dropdown: loaded fresh each time it opens.
-const historyBtn = $('history');
-const historyMenu = $('history-menu');
-
-function closeHistory() {
-    historyMenu.hidden = true;
-    historyBtn.setAttribute('aria-expanded', 'false');
-}
-
-async function toggleHistory() {
-    if (!historyMenu.hidden) return closeHistory();
-    const entries = (await History()) ?? [];
-    historyMenu.replaceChildren(...view.historyMenu(
-        entries,
-        (url) => { closeHistory(); goActive((id) => Navigate(id, url)); },
-        async () => { await ClearHistory(); closeHistory(); },
-        () => { closeHistory(); goActive(FullHistory); },
-    ));
-    historyMenu.hidden = false;
-    historyBtn.setAttribute('aria-expanded', 'true');
-}
-
-historyBtn.addEventListener('click', toggleHistory);
-document.addEventListener('mousedown', (e) => {
-    if (!historyMenu.hidden && !e.target.closest('.menu-wrap')) closeHistory();
-});
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeHistory();
-});
-
 // Keyboard shortcuts. "mod" is Cmd on macOS and Ctrl elsewhere.
 const isMac = navigator.platform.startsWith('Mac');
 document.addEventListener('keydown', (e) => {
@@ -369,6 +402,7 @@ document.addEventListener('keydown', (e) => {
     else if (mod && key === 'r') { if (currentPage()?.url) goActive(Reload); }
     else if (mod && key === 'u') toggleSource();
     else if (mod && e.shiftKey && key === 'a') toggleAsk();
+    else if (mod && e.shiftKey && key === 'c') copyMarkdown();
     else if (mod && key === 't') openTab();
     else if (mod && key === 'w') closeTab(active);
     else if (e.ctrlKey && e.key === 'Tab') stepTab(e.shiftKey ? -1 : 1);
@@ -429,12 +463,18 @@ initStorage(() => { updateBookmarkIndicator(); refreshPanel(); });
 initTagging(() => { updateBookmarkIndicator(); refreshPanel(); });
 initOrganize(() => { updateBookmarkIndicator(); refreshPanel(); });
 
-initMenu(() => openCredentials({origin: originOf(currentPage()?.url ?? '').replace(/^null$/, '')}), openAI);
+initMenu({
+    credentials: () => openCredentials({origin: originOf(currentPage()?.url ?? '').replace(/^null$/, '')}),
+    ai: openAI,
+    history: () => goActive(FullHistory),
+    clearHistory: () => ClearHistory(),
+});
 initAI();
 initAsk({
     tab: () => active,
     open: (url, newTab) => (newTab ? openTab(url, {background: true}) : goActive((id) => Navigate(id, url))),
 });
+initReading({page: currentPage, run: readPage});
 initConsole();
 restoreTabs();
 address.focus();

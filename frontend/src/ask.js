@@ -140,6 +140,18 @@ async function send() {
     }
 }
 
+/** Opens the panel and asks a question at once, e.g. to explain a passage the reader selected. */
+export function askNow(question) {
+    if (!askable(host.tab())) return;
+    toggleAsk(true);
+    if (host.tab().chat?.pending) { // one answer at a time: leave the question for the reader to send
+        input.value = question;
+        return;
+    }
+    input.value = question;
+    send();
+}
+
 /** `host.tab()` gives the active tab; `host.open(url, newTab)` follows a link from an answer. */
 export function initAsk(hostApi) {
     host = hostApi;

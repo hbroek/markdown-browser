@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"markdown-browser/internal/fetch"
+	"markdown-browser/internal/imgproxy"
 	"markdown-browser/internal/localfile"
 
 	"github.com/microcosm-cc/bluemonday"
@@ -108,6 +109,8 @@ func resolveAttr(n *xhtml.Node, key string, base *url.URL, isImage bool) {
 		switch {
 		case !isImage:
 			n.Attr[i].Val = abs.String()
+		case imgproxy.Wanted(abs):
+			n.Attr[i].Val = imgproxy.URL(abs.String())
 		case abs.Scheme == "http" || abs.Scheme == "https":
 			n.Attr[i].Val = abs.String()
 		case abs.Scheme == "file" && base.Scheme == "file":

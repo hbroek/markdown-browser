@@ -157,3 +157,14 @@ func TestText(t *testing.T) {
 		t.Errorf("text = %q, want %q", text, want)
 	}
 }
+
+func TestImagesTheWebviewCannotLoadGoThroughTheProxy(t *testing.T) {
+	out, _, _ := Markdown([]byte("![a](http://henry.localhost:8080/media/a.jpg) ![b](https://example.com/b.png) ![c](/media/c.png)"), mustURL("http://henry.localhost:8080/timeline"))
+	if !strings.Contains(out, `src="/_img?url=http%3A%2F%2Fhenry.localhost%3A8080%2Fmedia%2Fa.jpg"`) ||
+		!strings.Contains(out, `src="/_img?url=http%3A%2F%2Fhenry.localhost%3A8080%2Fmedia%2Fc.png"`) {
+		t.Errorf("local and plain http images were not proxied: %s", out)
+	}
+	if !strings.Contains(out, `src="https://example.com/b.png"`) {
+		t.Errorf("a remote https image should load directly: %s", out)
+	}
+}

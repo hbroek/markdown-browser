@@ -154,17 +154,30 @@ func (f *Fetcher) Get(ctx context.Context, rawURL string) (*Result, error) {
 	if u.Scheme == "file" {
 		return f.getFile(u)
 	}
-	return f.getHTTP(ctx, u)
+	return f.getHTTP(ctx, u, Accept)
 }
 
-func (f *Fetcher) getHTTP(ctx context.Context, u *url.URL) (*Result, error) {
+// GetImage fetches an image the way a page would, with the saved credentials
+// and cookies of its server. Only http and https addresses are fetched.
+func (f *Fetcher) GetImage(ctx context.Context, rawURL string) (*Result, error) {
+	u, err := Normalize(rawURL)
+	if err != nil {
+		return nil, err
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return nil, fmt.Errorf("unsupported scheme %q", u.Scheme)
+	}
+	return f.getHTTP(ctx, u, "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5")
+}
+
+func (f *Fetcher) getHTTP(ctx context.Context, u *url.URL, accept string) (*Result, error) {
 	ctx, cancel := context.WithTimeout(ctx, Timeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Accept", Accept)
+	req.Header.Set("Accept", accept)
 	req.Header.Set("User-Agent", userAgent)
 	if f.auth != nil {
 		f.auth.Apply(req)

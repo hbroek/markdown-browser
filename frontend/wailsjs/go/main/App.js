@@ -118,6 +118,10 @@ export function NewTab() {
   return window['go']['main']['App']['NewTab']();
 }
 
+export function ReadPage(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['ReadPage'](arg1, arg2, arg3, arg4);
+}
+
 export function Reload(arg1) {
   return window['go']['main']['App']['Reload'](arg1);
 }
