@@ -515,16 +515,17 @@ label.radio { flex-direction: row; align-items: center; gap: 8px; font-size: 1em
 dialog.wide { width: min(64rem, 94vw); }
 dialog .stack { display: flex; flex-direction: column; gap: 12px; }
 dialog .stack[hidden] { display: none; } /* display: flex would otherwise win over the hidden attribute */
-#tag-progress { width: 100%; }
-#tag-table-wrap { max-height: 55vh; overflow: auto; border: 1px solid var(--border); border-radius: 6px; }
-#tag-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
-#tag-table th { position: sticky; top: 0; background: var(--bar); text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
-#tag-table td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--border); }
-#tag-table td:first-child, #tag-table th:first-child { width: 2em; }
-#tag-table input[type="text"], #tag-table textarea { width: 100%; padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--fg); font: inherit; }
+#tag-progress, #org-progress { width: 100%; }
+#tag-table-wrap, #org-table-wrap { max-height: 55vh; overflow: auto; border: 1px solid var(--border); border-radius: 6px; }
+#tag-table, #org-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+#tag-table th, #org-table th { position: sticky; top: 0; background: var(--bar); text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+#tag-table td, #org-table td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--border); }
+#tag-table td:first-child, #tag-table th:first-child, #org-table td:first-child, #org-table th:first-child { width: 2em; }
+#tag-table input[type="text"], #tag-table textarea, #org-table input[type="text"] { width: 100%; padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--fg); font: inherit; }
 #tag-table textarea { resize: vertical; }
 .tag-url { margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 22rem; }
-.tag-failed td { color: var(--muted); }
+.tag-failed td, .org-nofit td { color: var(--muted); }
 
 .search-switch { margin: 0 auto 12px; display: block; padding: 4px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); font: inherit; font-size: 0.85em; cursor: pointer; }
 .search-switch:hover { background: var(--hover); }
+.new-folder { border-color: var(--accent); }

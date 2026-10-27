@@ -48,6 +48,7 @@
             <button type="button" id="bookmarks-import" title="Add bookmarks from an HTML export or a markdown list">Import&hellip;</button>
             <button type="button" id="bookmarks-export" title="Save all bookmarks as a browser-compatible HTML file">Export HTML&hellip;</button>
             <button type="button" id="bookmarks-tag" title="Let the AI suggest titles, descriptions and keywords for bookmarks, which you review before anything is saved">Tag with AI&hellip;</button>
+            <button type="button" id="bookmarks-organize" title="Let the AI suggest folders for bookmarks that are not in any folder, which you review before anything is moved">Sort unfiled&hellip;</button>
             <button type="button" id="bookmarks-export-md" title="Save all bookmarks as a markdown list">Export Markdown&hellip;</button>
             <span id="bookmarks-msg" role="status"></span>
         </div>
@@ -212,6 +213,29 @@
         <span class="spacer"></span>
         <button type="button" id="tag-cancel">Cancel</button>
         <button type="button" id="tag-go" class="primary">Start</button>
+    </div>
+</dialog>
+<dialog id="org-dialog" class="wide" aria-labelledby="org-title">
+    <h2 id="org-title">Sort unfiled bookmarks with AI</h2>
+    <div id="org-setup" class="stack">
+        <p id="org-summary" class="note"></p>
+        <p class="note">The AI sees the title, address, keywords and description of each unfiled bookmark, and the names of your folders. It does not read the pages. Nothing is moved until you have reviewed the suggestions.</p>
+    </div>
+    <div id="org-run" class="stack" hidden>
+        <progress id="org-progress" max="1" value="0"></progress>
+        <p id="org-current" class="note busy"></p>
+    </div>
+    <div id="org-review" class="stack" hidden>
+        <p id="org-review-note" class="note"></p>
+        <div id="org-table-wrap"><table id="org-table"></table></div>
+        <datalist id="org-folders"></datalist>
+    </div>
+    <p id="org-status" role="status"></p>
+    <div class="dialog-actions">
+        <span id="org-count" class="note"></span>
+        <span class="spacer"></span>
+        <button type="button" id="org-cancel">Cancel</button>
+        <button type="button" id="org-go" class="primary">Start</button>
     </div>
 </dialog>
 <dialog id="ai-dialog" aria-labelledby="ai-title">

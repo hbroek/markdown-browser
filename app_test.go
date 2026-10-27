@@ -300,7 +300,7 @@ func TestSummarySourceNamesTheModelOrProvider(t *testing.T) {
 		want string
 	}{
 		{AIInput{Preset: "ollama", BaseURL: "http://127.0.0.1:11434/v1", Model: "llama3.2"}, "llama3.2"},
-		{AIInput{Preset: "apple", BaseURL: "http://127.0.0.1:1976/v1"}, "Apple on-device (fm serve)"},
+		{AIInput{Preset: "apple", BaseURL: "http://127.0.0.1:1976/v1"}, "Apple on-device / fm serve"},
 		{AIInput{Preset: "custom", BaseURL: "http://127.0.0.1:8080/v1"}, "127.0.0.1:8080"},
 	} {
 		if err := a.SaveAI(tc.in, ""); err != nil {
@@ -492,5 +492,57 @@ func TestMeaningSearchNeedsAProvider(t *testing.T) {
 	a := testApp(t, &miniLinkaGoGo{})
 	if _, err := a.meaningPage(context.Background(), "anything"); err == nil || !strings.Contains(err.Error(), "AI") {
 		t.Errorf("err = %v", err)
+	}
+}
+
+func TestSortTheUnfiled(t *testing.T) {
+	a := testApp(t, &miniLinkaGoGo{})
+	a.fetcher = fetch.NewFetcher(a.auth, nil)
+	s, _ := a.store()
+	ctx := context.Background()
+	reading, _ := s.SaveFolder(ctx, bookmarks.Folder{Name: "Reading"})
+	s.SaveFolder(ctx, bookmarks.Folder{Name: "Rust", ParentID: reading.ID})
+	one, _ := s.SaveBookmark(ctx, bookmarks.Bookmark{Title: "Async Rust", URL: "https://one.test/"})
+	two, _ := s.SaveBookmark(ctx, bookmarks.Bookmark{Title: "Pasta", URL: "https://two.test/"})
+	three, _ := s.SaveBookmark(ctx, bookmarks.Bookmark{Title: "Odd", URL: "https://three.test/"})
+	filed, _ := s.SaveBookmark(ctx, bookmarks.Bookmark{Title: "Filed", URL: "https://filed.test/", FolderID: reading.ID})
+
+	unfiled, err := a.UnfiledBookmarks()
+	if err != nil || len(unfiled) != 3 {
+		t.Fatalf("unfiled = %+v, %v", unfiled, err)
+	}
+
+	var sent string
+	llm := aiServer(t, `[{"n":1,"folder":"reading / rust"},{"n":2,"folder":"Food / Recipes"},{"n":3,"folder":""}]`, &sent, nil)
+	if err := a.SaveAI(AIInput{Preset: "custom", BaseURL: llm.URL + "/v1", Model: "m"}, ""); err != nil {
+		t.Fatal(err)
+	}
+	batch := []FilingInput{{ID: one.ID, Title: one.Title, URL: one.URL}, {ID: two.ID, Title: two.Title, URL: two.URL}, {ID: three.ID, Title: three.Title, URL: three.URL}}
+	choices, err := a.SuggestFolders("", batch, []string{"Food"})
+	if err != nil || len(choices) != 3 || choices[0].ID != one.ID || choices[1].Folder != "Food / Recipes" || choices[2].Folder != "" {
+		t.Fatalf("choices = %+v, %v", choices, err)
+	}
+	if !strings.Contains(sent, "Reading / Rust") || !strings.Contains(sent, "Food") {
+		t.Errorf("the model was not shown the folder tree: %s", sent)
+	}
+
+	res, err := a.ApplyFiling([]Move{{ID: one.ID, Folder: "reading / rust"}, {ID: two.ID, Folder: "Food / Recipes"}, {ID: three.ID, Folder: ""}, {ID: "nope", Folder: "X"}})
+	if err != nil || res.Moved != 2 || res.Created != 2 || len(res.Failed) != 1 {
+		t.Fatalf("result = %+v, %v", res, err)
+	}
+	all, _ := a.BookmarksUnder("")
+	where := map[string]string{}
+	for _, it := range all {
+		where[it.Bookmark.Title] = it.Path
+	}
+	if where["Async Rust"] != "Reading / Rust" || where["Pasta"] != "Food / Recipes" || where["Odd"] != "" || where["Filed"] != "Reading" {
+		t.Errorf("after filing: %v", where)
+	}
+	if _, err := s.Bookmark(ctx, filed.ID); err != nil {
+		t.Error(err)
+	}
+	folders, _ := s.Folders(ctx)
+	if len(folders) != 4 { // Reading, Rust, Food, Recipes: "reading / rust" did not create a duplicate
+		t.Errorf("folders = %+v", folders)
 	}
 }

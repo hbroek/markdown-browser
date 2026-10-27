@@ -34,7 +34,7 @@ var Presets = []Preset{
 		Note: "Uses Anthropic's OpenAI-compatible endpoint."},
 	{ID: "openai", Name: "OpenAI", BaseURL: "https://api.openai.com/v1", Model: "gpt-4o-mini", KeyRequired: true},
 	{ID: "gemini", Name: "Google Gemini", BaseURL: "https://generativelanguage.googleapis.com/v1beta/openai", Model: "gemini-2.5-flash", KeyRequired: true},
-	{ID: "apple", Name: "Apple on-device (fm serve)", BaseURL: "http://127.0.0.1:1976/v1", Model: "",
+	{ID: "apple", Name: "Apple on-device / fm serve", BaseURL: "http://127.0.0.1:1976/v1", Model: "",
 		Note: "Run \"fm serve\" in a terminal first. Nothing leaves this computer."},
 	{ID: "ollama", Name: "Ollama (local)", BaseURL: "http://127.0.0.1:11434/v1", Model: "llama3.2",
 		Note: "Nothing leaves this computer. The model must be pulled first."},

@@ -1,8 +1,8 @@
 // "Tag with AI": the AI proposes a title, description and keywords for many bookmarks at once.
 // Nothing is saved until the proposals have been reviewed in a table and applied.
-import {BookmarkFolders, BookmarksUnder, SuggestBookmark, SaveBookmark, AISettings} from '../wailsjs/go/main/App';
+import {BookmarkFolders, BookmarksUnder, SuggestBookmark, SaveBookmark} from '../wailsjs/go/main/App';
 import {folderOptions} from './bookmarks.js';
-import {aiReady, openAI, newRequestId, cancelRequest} from './ai.js';
+import {aiReady, describeProvider, openAI, newRequestId, cancelRequest} from './ai.js';
 
 const $ = (id) => document.getElementById(id);
 const dialog = $('tag-dialog');
@@ -40,11 +40,7 @@ function candidates() {
 
 async function describeSetup() {
     const list = candidates();
-    let where = 'your AI provider';
-    try {
-        const info = await AISettings();
-        if (info.baseUrl) where = new URL(info.baseUrl).host;
-    } catch { /* keep the generic wording */ }
+    const where = await describeProvider();
     $('tag-summary').textContent = list.length
         ? `${plural(list.length, 'bookmark')} to tag. Up to ${(list.length * PAGE_CHARS).toLocaleString()} characters of page text would be sent to ${where}.`
         : 'No bookmarks need tagging here.';

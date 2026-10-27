@@ -8,6 +8,7 @@ import {initBookmarks, openBookmark} from './bookmarks.js';
 import {initPanel, panelShortcut, refreshPanel} from './bookmarkpanel.js';
 import {initStorage} from './storage.js';
 import {initTagging} from './tagging.js';
+import {initOrganize} from './organize.js';
 import {initMenu, showCredentialState} from './theme.js';
 import {initAI, openAI, aiReady, newRequestId, cancelRequest} from './ai.js';
 import {initAsk, refreshAsk, toggleAsk} from './ask.js';
@@ -426,6 +427,7 @@ initBookmarks(() => { updateBookmarkIndicator(); refreshPanel(); });
 initPanel((url, newTab) => newTab ? openTab(url) : goActive((id) => Navigate(id, url)), updateBookmarkIndicator);
 initStorage(() => { updateBookmarkIndicator(); refreshPanel(); });
 initTagging(() => { updateBookmarkIndicator(); refreshPanel(); });
+initOrganize(() => { updateBookmarkIndicator(); refreshPanel(); });
 
 initMenu(() => openCredentials({origin: originOf(currentPage()?.url ?? '').replace(/^null$/, '')}), openAI);
 initAI();

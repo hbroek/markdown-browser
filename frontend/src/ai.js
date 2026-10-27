@@ -106,3 +106,16 @@ export function initAI() {
         }
     });
 }
+
+/** Names where AI requests go, e.g. "the model gemma4:latest (Ollama), on this computer". */
+export async function describeProvider() {
+    try {
+        const info = await AISettings();
+        const preset = info.presets.find((p) => p.id === info.preset);
+        const model = info.model ? `the model ${info.model}` : 'the server\'s default model';
+        const provider = preset && preset.id !== 'custom' ? ` (${preset.name})` : '';
+        return `${model}${provider}${isLocal(new URL(info.baseUrl).hostname) ? ', on this computer' : ''}`;
+    } catch {
+        return 'your AI provider';
+    }
+}

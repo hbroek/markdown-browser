@@ -462,3 +462,167 @@ func (a *App) meaningPage(ctx context.Context, query string) (string, error) {
 		a.aiSource(), took.Seconds(), len(offered), bookmarkCount+historyCount, host)
 	return bookmarks.MeaningMarkdown(query, matches, note), nil
 }
+
+// FilingInput is an unfiled bookmark offered to the model.
+type FilingInput struct {
+	ID          string   `json:"id"`
+	Title       string   `json:"title"`
+	URL         string   `json:"url"`
+	Description string   `json:"description"`
+	Keywords    []string `json:"keywords"`
+}
+
+// FolderChoice is the folder path the model proposes for one bookmark; empty when it found no fit.
+type FolderChoice struct {
+	ID     string `json:"id"`
+	Folder string `json:"folder"`
+}
+
+// FolderPaths lists every folder as a path like "Reading / Rust", with the id of each.
+func folderPaths(folders []bookmarks.Folder) map[string]string {
+	byID := map[string]bookmarks.Folder{}
+	for _, f := range folders {
+		byID[f.ID] = f
+	}
+	paths := map[string]string{}
+	for _, f := range folders {
+		path, depth := f.Name, 0
+		for p := f.ParentID; p != "" && depth < 20; depth++ {
+			parent, ok := byID[p]
+			if !ok {
+				break
+			}
+			path = parent.Name + ai.FolderSep + path
+			p = parent.ParentID
+		}
+		paths[path] = f.ID
+	}
+	return paths
+}
+
+// UnfiledBookmarks lists the bookmarks that sit at the top level, in no folder.
+func (a *App) UnfiledBookmarks() ([]bookmarks.Bookmark, error) {
+	return a.BookmarksIn("")
+}
+
+// SuggestFolders asks the model where unfiled bookmarks belong. proposed lists
+// folders earlier batches asked to create, so later batches reuse them.
+func (a *App) SuggestFolders(requestID string, batch []FilingInput, proposed []string) ([]FolderChoice, error) {
+	c, err := a.aiClient()
+	if err != nil {
+		return nil, err
+	}
+	if len(batch) == 0 {
+		return nil, nil
+	}
+	s, err := a.store()
+	if err != nil {
+		return nil, err
+	}
+	ctx, done := a.aiContext(requestID)
+	defer done()
+	folders, err := s.Folders(a.bookmarkCtx())
+	if err != nil {
+		return nil, err
+	}
+	var paths []string
+	seen := map[string]bool{}
+	for path := range folderPaths(folders) {
+		paths = append(paths, path)
+		seen[strings.ToLower(path)] = true
+	}
+	sort.Strings(paths)
+	for _, p := range proposed {
+		if p = ai.CleanFolderPath(p); p != "" && !seen[strings.ToLower(p)] {
+			seen[strings.ToLower(p)] = true
+			paths = append(paths, p)
+		}
+	}
+	items := make([]ai.Item, len(batch))
+	for i, b := range batch {
+		items[i] = ai.Item{Ref: i, Title: b.Title, URL: b.URL, Keywords: strings.Join(b.Keywords, ", "), Description: b.Description}
+	}
+	placed, err := ai.Organize(ctx, c, paths, items)
+	if err != nil {
+		return nil, cancelled(ctx, err)
+	}
+	out := make([]FolderChoice, 0, len(placed))
+	for _, p := range placed {
+		out = append(out, FolderChoice{ID: batch[p.Index].ID, Folder: p.Folder})
+	}
+	return out, nil
+}
+
+// Move files a bookmark in a folder path, which may not exist yet.
+type Move struct {
+	ID     string `json:"id"`
+	Folder string `json:"folder"`
+}
+
+// MoveResult says what ApplyFiling did.
+type MoveResult struct {
+	Moved   int      `json:"moved"`
+	Created int      `json:"created"`
+	Failed  []string `json:"failed"`
+}
+
+// ApplyFiling moves bookmarks into folders by path, creating the folders that do not exist.
+func (a *App) ApplyFiling(moves []Move) (MoveResult, error) {
+	var res MoveResult
+	s, err := a.store()
+	if err != nil {
+		return res, err
+	}
+	ctx := a.bookmarkCtx()
+	folders, err := s.Folders(ctx)
+	if err != nil {
+		return res, err
+	}
+	ids := map[string]string{} // lower-case path -> folder id
+	for path, id := range folderPaths(folders) {
+		ids[strings.ToLower(path)] = id
+	}
+	resolve := func(path string) (string, error) {
+		parent, so := "", ""
+		for _, name := range strings.Split(path, ai.FolderSep) {
+			if so != "" {
+				so += ai.FolderSep
+			}
+			so += name
+			id, ok := ids[strings.ToLower(so)]
+			if !ok {
+				f, err := s.SaveFolder(ctx, bookmarks.Folder{ParentID: parent, Name: name})
+				if err != nil {
+					return "", err
+				}
+				id = f.ID
+				ids[strings.ToLower(so)] = id
+				res.Created++
+			}
+			parent = id
+		}
+		return parent, nil
+	}
+	for _, m := range moves {
+		path := ai.CleanFolderPath(m.Folder)
+		if path == "" {
+			continue
+		}
+		b, err := s.Bookmark(ctx, m.ID)
+		if err != nil {
+			res.Failed = append(res.Failed, fmt.Sprintf("%s: %v", m.ID, err))
+			continue
+		}
+		id, err := resolve(path)
+		if err == nil && id != b.FolderID {
+			b.FolderID = id
+			_, err = s.SaveBookmark(ctx, b)
+		}
+		if err != nil {
+			res.Failed = append(res.Failed, fmt.Sprintf("%s: %v", b.Title, err))
+			continue
+		}
+		res.Moved++
+	}
+	return res, nil
+}

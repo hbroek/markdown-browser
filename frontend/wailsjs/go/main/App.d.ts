@@ -10,6 +10,8 @@ import {fetch} from '../models';
 
 export function AISettings():Promise<main.AIInfo>;
 
+export function ApplyFiling(arg1:Array<main.Move>):Promise<main.MoveResult>;
+
 export function AskPage(arg1:string,arg2:string,arg3:Array<ai.Message>,arg4:string):Promise<main.AIAnswer>;
 
 export function Back(arg1:number):Promise<page.Page>;
@@ -82,9 +84,13 @@ export function SearchBookmarks(arg1:string):Promise<Array<bookmarks.Bookmark>>;
 
 export function SuggestBookmark(arg1:string,arg2:string):Promise<ai.Suggestion>;
 
+export function SuggestFolders(arg1:string,arg2:Array<main.FilingInput>,arg3:Array<string>):Promise<Array<main.FolderChoice>>;
+
 export function SummarizePage(arg1:string,arg2:string):Promise<main.AISummary>;
 
 export function TestAI(arg1:main.AIInput,arg2:string):Promise<string>;
+
+export function UnfiledBookmarks():Promise<Array<bookmarks.Bookmark>>;
 
 export function UseLinkaGoGo(arg1:string,arg2:string,arg3:string):Promise<void>;
 

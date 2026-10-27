@@ -465,6 +465,70 @@ export namespace main {
 	        this.millis = source["millis"];
 	    }
 	}
+	export class FilingInput {
+	    id: string;
+	    title: string;
+	    url: string;
+	    description: string;
+	    keywords: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new FilingInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.title = source["title"];
+	        this.url = source["url"];
+	        this.description = source["description"];
+	        this.keywords = source["keywords"];
+	    }
+	}
+	export class FolderChoice {
+	    id: string;
+	    folder: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new FolderChoice(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.folder = source["folder"];
+	    }
+	}
+	export class Move {
+	    id: string;
+	    folder: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Move(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.folder = source["folder"];
+	    }
+	}
+	export class MoveResult {
+	    moved: number;
+	    created: number;
+	    failed: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new MoveResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.moved = source["moved"];
+	        this.created = source["created"];
+	        this.failed = source["failed"];
+	    }
+	}
 
 }
 

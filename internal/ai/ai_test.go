@@ -291,3 +291,31 @@ func TestPrefilterKeepsMatchesThenRecent(t *testing.T) {
 		t.Errorf("a short list was cut: %d", len(all))
 	}
 }
+
+func TestOrganizeParsesPlacements(t *testing.T) {
+	var gotUser string
+	c := chatFunc(func(system, user string) string {
+		gotUser = user
+		return "Sure:\n[{\"n\":1,\"folder\":\"Reading/ Rust \"},{\"n\":2,\"folder\":\"\"},{\"n\":2,\"folder\":\"Dup\"},{\"n\":9,\"folder\":\"Gone\"},{\"n\":3,\"folder\":\"a/b/c/d/e\"}]"
+	})
+	items := []Item{{Title: "One", URL: "https://one.test"}, {Title: "Two", URL: "https://two.test"}, {Title: "Three", URL: "https://three.test"}}
+	got, err := Organize(context.Background(), c, []string{"Reading", "Reading / Rust"}, items)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []Placement{{0, "Reading / Rust"}, {1, ""}, {2, "a / b / c"}}
+	if len(got) != len(want) {
+		t.Fatalf("got %+v", got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("placement %d = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+	if !strings.Contains(gotUser, "Reading / Rust") || !strings.Contains(gotUser, "1 | One | https://one.test") {
+		t.Errorf("prompt = %q", gotUser)
+	}
+	if _, err := Organize(context.Background(), c, nil, make([]Item, MaxOrganizeBatch+1)); err == nil {
+		t.Error("an oversized batch was accepted")
+	}
+}

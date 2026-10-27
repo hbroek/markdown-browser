@@ -6,6 +6,10 @@ export function AISettings() {
   return window['go']['main']['App']['AISettings']();
 }
 
+export function ApplyFiling(arg1) {
+  return window['go']['main']['App']['ApplyFiling'](arg1);
+}
+
 export function AskPage(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['AskPage'](arg1, arg2, arg3, arg4);
 }
@@ -150,12 +154,20 @@ export function SuggestBookmark(arg1, arg2) {
   return window['go']['main']['App']['SuggestBookmark'](arg1, arg2);
 }
 
+export function SuggestFolders(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SuggestFolders'](arg1, arg2, arg3);
+}
+
 export function SummarizePage(arg1, arg2) {
   return window['go']['main']['App']['SummarizePage'](arg1, arg2);
 }
 
 export function TestAI(arg1, arg2) {
   return window['go']['main']['App']['TestAI'](arg1, arg2);
+}
+
+export function UnfiledBookmarks() {
+  return window['go']['main']['App']['UnfiledBookmarks']();
 }
 
 export function UseLinkaGoGo(arg1, arg2, arg3) {

@@ -96,6 +96,11 @@ model's reason. Unlike the other features it sends not the text of a page but th
 bookmark and history entry**, so it needs the same permission for servers outside your computer. The results page says what was sent and where. A
 keyword results page has a button to rerun the search by meaning, and the other way round. Searches by meaning are not recorded in history.
 
+**Sort unfiled** (a button in the bookmarks panel footer) asks the AI where the bookmarks that sit in no folder belong. It prefers your
+existing folders and proposes a new one only when nothing fits. It sends the title, address, keywords and description of each unfiled
+bookmark and the names of your folders (50 bookmarks per request), not the pages. You review a table, change any folder (typing a new
+path creates it), untick what you do not want, and only then are bookmarks moved.
+
 - The API key is kept in the system keychain, never in `settings.json`.
 - A summary, suggestion or question sends the page's text (cut to about 30,000 characters) to the provider. For a server that is not on this
   computer you must tick *Allow sending page text to …* once; servers on this computer need no permission.
@@ -187,7 +192,7 @@ post to Mastodon or Bluesky with an app password kept in the keychain), and save
 
 **AI features**, all through the same provider (see **AI assistant** above), in this order:
 
-1. **Auto-organize.** After an import, or for a messy folder, the model proposes folders and moves, and you approve them.
+1. **More organizing.** Tidy an overgrown folder into subfolders, or propose a folder structure for a messy collection (sorting the unfiled is done).
 2. **Reading tools.** Translate a page, explain or simplify a selection, an outline of long pages, a digest of an RSS feed.
 3. **Compare tabs.** Summarize several open tabs together.
 4. **Save as notes.** Turn the current page into a local markdown summary with a link back.
