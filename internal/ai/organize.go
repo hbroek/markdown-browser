@@ -48,7 +48,10 @@ func CleanFolderPath(path string) string {
 
 // Organize asks the model which folder each item belongs in. folders lists the
 // folder paths that exist, which the model should prefer; it may propose new ones.
-func Organize(ctx context.Context, c Chatter, folders []string, items []Item) ([]Placement, error) {
+//
+// within, when set, is the path of a folder being tidied: all the items are in it,
+// and the model sorts them into its subfolders. Answers outside it are dropped.
+func Organize(ctx context.Context, c Chatter, folders []string, items []Item, within string) ([]Placement, error) {
 	if len(items) == 0 {
 		return nil, nil
 	}
@@ -70,7 +73,14 @@ func Organize(ctx context.Context, c Chatter, folders []string, items []Item) ([
 	for i, it := range items {
 		fmt.Fprintf(&list, "%d | %s | %s | %s | %s\n", i+1, field(it.Title, 100), field(it.URL, 120), field(it.Keywords, 80), field(it.Description, 120))
 	}
-	system := "You file a person's unsorted bookmarks into their folders. " +
+	within = CleanFolderPath(within)
+	task := "You file a person's unsorted bookmarks into their folders. "
+	if within != "" {
+		task = "You tidy one overgrown folder of a person's bookmarks, " + `"` + within + `"` + ", by sorting its bookmarks into subfolders of it. " +
+			`Every folder you answer with must be "` + within + `" or one of its subfolders, written as a full path that starts with "` + within + `". ` +
+			`Use "` + within + `" itself, or "", for a bookmark that should stay directly in it. `
+	}
+	system := task +
 		"Each line of the bookmark list is: number | title | address | keywords | description. " +
 		`Reply with only a JSON array with one entry per bookmark, like [{"n": 1, "folder": "Reading / Rust"}]. ` +
 		"Use the exact path of an existing folder whenever one fits. " +
@@ -82,7 +92,18 @@ func Organize(ctx context.Context, c Chatter, folders []string, items []Item) ([
 	if err != nil {
 		return nil, err
 	}
-	return parsePlacements(reply, len(items))
+	placed, err := parsePlacements(reply, len(items))
+	if err != nil || within == "" {
+		return placed, err
+	}
+	prefix := strings.ToLower(within) + FolderSep
+	for i := range placed {
+		f := strings.ToLower(placed[i].Folder)
+		if f == strings.ToLower(within) || !strings.HasPrefix(f, prefix) { // staying put, or outside the folder
+			placed[i].Folder = ""
+		}
+	}
+	return placed, nil
 }
 
 func parsePlacements(reply string, offered int) ([]Placement, error) {

@@ -1,6 +1,6 @@
 import './style.css';
 import './schemes.css';
-import {Navigate, Reload, Back, Forward, ClearHistory, FullHistory, BookmarkFor, NewTab, CloseTab, SummarizePage, ReadPage} from '../wailsjs/go/main/App';
+import {Navigate, Reload, Back, Forward, ClearHistory, FullHistory, BookmarkFor, NewTab, CloseTab, SummarizePage, ReadPage, SavePage} from '../wailsjs/go/main/App';
 import {OnFileDrop} from '../wailsjs/runtime/runtime';
 import * as view from './view.js';
 import {initConsole, toggleConsole} from './console.js';
@@ -13,6 +13,7 @@ import {initMenu, showCredentialState} from './theme.js';
 import {initAI, openAI, aiReady, newRequestId, cancelRequest} from './ai.js';
 import {initAsk, refreshAsk, toggleAsk} from './ask.js';
 import {initReading} from './reading.js';
+import {initCompare, openCompare} from './compare.js';
 import {initCredentials, openCredentials, credentialOrigins} from './creds.js';
 
 const $ = (id) => document.getElementById(id);
@@ -44,6 +45,32 @@ function render() {
     const extras = [copyBar(p), searchSwitch(p), active?.summary ? view.summary(active.summary, closeSummary, cancelSummary) : null].filter(Boolean);
     content.replaceChildren(...extras, body);
     content.scrollTop = 0;
+}
+
+// --- save as markdown ---
+
+let toastTimer = 0;
+
+/** A short message at the bottom of the window. */
+function toast(text, isError = false) {
+    const box = $('toast');
+    box.textContent = text;
+    box.classList.toggle('error', isError);
+    box.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { box.hidden = true; }, isError ? 6000 : 3000);
+}
+
+/** Saves the page as a markdown file: its own markdown, or the title and links of any other page. */
+async function savePage() {
+    const p = currentPage();
+    if (!p?.url || p.kind === 'error' || isSearch(p.url)) return toast('Open a page first, then save it.', true);
+    try {
+        const path = await SavePage(p);
+        if (path) toast(`Saved ${path}`);
+    } catch (e) {
+        toast(String(e), true);
+    }
 }
 
 // --- copy markdown ---
@@ -184,11 +211,18 @@ function goActive(fn) {
 // Each one's back/forward history starts afresh.
 const TABS_KEY = 'tabs';
 
+/** The page title of a tab, or the one saved for it while it has not been loaded. */
+function tabTitle(t) {
+    if (t.page) return t.page.kind !== 'error' && t.page.title ? t.page.title : '';
+    return t.pendingTitle ?? '';
+}
+
 function saveTabs() {
     const kept = tabs.filter((t) => t.page?.url || t.pending);
     try {
         localStorage.setItem(TABS_KEY, JSON.stringify({
             urls: kept.map((t) => t.page?.url ?? t.pending),
+            titles: kept.map((t) => tabTitle(t)), // so tabs that are not loaded yet keep their names
             active: Math.max(0, kept.indexOf(active)),
         }));
     } catch { /* not persisted */ }
@@ -197,17 +231,24 @@ function saveTabs() {
 function savedTabs() {
     try {
         const s = JSON.parse(localStorage.getItem(TABS_KEY));
-        const urls = Array.isArray(s?.urls) ? s.urls.filter((u) => typeof u === 'string' && u) : [];
-        return {urls, active: Number.isInteger(s?.active) ? s.active : 0};
-    } catch { return {urls: [], active: 0}; }
+        const urls = Array.isArray(s?.urls) ? s.urls : [];
+        const titles = Array.isArray(s?.titles) ? s.titles : []; // absent in what older versions saved
+        const kept = urls.map((u, i) => ({url: u, title: titles[i]})).filter((t) => typeof t.url === 'string' && t.url);
+        return {
+            urls: kept.map((t) => t.url),
+            titles: kept.map((t) => (typeof t.title === 'string' ? t.title : '')),
+            active: Number.isInteger(s?.active) ? s.active : 0,
+        };
+    } catch { return {urls: [], titles: [], active: 0}; }
 }
 
 async function restoreTabs() {
-    const {urls, active: which} = savedTabs();
+    const {urls, titles, active: which} = savedTabs();
     if (!urls.length) return openTab();
-    for (const url of urls) { // only the selected tab is fetched now; the rest load when shown
+    for (const [i, url] of urls.entries()) { // only the selected tab is fetched now; the rest load when shown
         const tab = await newTab();
         tab.pending = url;
+        tab.pendingTitle = titles[i] ?? '';
         tabs.push(tab);
     }
     activate(tabs[Math.min(which, tabs.length - 1)]);
@@ -217,7 +258,7 @@ const tabStrip = $('tabs');
 
 function tabLabel(t) {
     const p = t.page;
-    if (!p) return t.pending ? displayAddress(t.pending) : 'New tab';
+    if (!p) return t.pending ? (t.pendingTitle || displayAddress(t.pending)) : 'New tab';
     if (p.title && p.kind !== 'error') return p.title;
     return p.url ? displayAddress(p.url) : 'New tab';
 }
@@ -403,6 +444,7 @@ document.addEventListener('keydown', (e) => {
     else if (mod && key === 'u') toggleSource();
     else if (mod && e.shiftKey && key === 'a') toggleAsk();
     else if (mod && e.shiftKey && key === 'c') copyMarkdown();
+    else if (mod && !e.shiftKey && key === 's') savePage();
     else if (mod && key === 't') openTab();
     else if (mod && key === 'w') closeTab(active);
     else if (e.ctrlKey && e.key === 'Tab') stepTab(e.shiftKey ? -1 : 1);
@@ -466,6 +508,7 @@ initOrganize(() => { updateBookmarkIndicator(); refreshPanel(); });
 initMenu({
     credentials: () => openCredentials({origin: originOf(currentPage()?.url ?? '').replace(/^null$/, '')}),
     ai: openAI,
+    savePage,
     history: () => goActive(FullHistory),
     clearHistory: () => ClearHistory(),
 });
@@ -474,7 +517,12 @@ initAsk({
     tab: () => active,
     open: (url, newTab) => (newTab ? openTab(url, {background: true}) : goActive((id) => Navigate(id, url))),
 });
-initReading({page: currentPage, run: readPage});
+initReading({page: currentPage, run: readPage, compare: openCompare});
+initCompare({
+    // A restored tab that has not been shown yet has only its address (tab.pending); the Go side reads it from there.
+    tabs: () => tabs.filter((t) => t.page?.kind !== 'error').map((t) => ({title: tabTitle(t), url: t.page?.url || t.pending || ''})),
+    open: (url, newTab) => (newTab ? openTab(url, {background: true}) : openTab(url)),
+});
 initConsole();
 restoreTabs();
 address.focus();

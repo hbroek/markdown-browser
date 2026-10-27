@@ -299,7 +299,7 @@ func TestOrganizeParsesPlacements(t *testing.T) {
 		return "Sure:\n[{\"n\":1,\"folder\":\"Reading/ Rust \"},{\"n\":2,\"folder\":\"\"},{\"n\":2,\"folder\":\"Dup\"},{\"n\":9,\"folder\":\"Gone\"},{\"n\":3,\"folder\":\"a/b/c/d/e\"}]"
 	})
 	items := []Item{{Title: "One", URL: "https://one.test"}, {Title: "Two", URL: "https://two.test"}, {Title: "Three", URL: "https://three.test"}}
-	got, err := Organize(context.Background(), c, []string{"Reading", "Reading / Rust"}, items)
+	got, err := Organize(context.Background(), c, []string{"Reading", "Reading / Rust"}, items, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -315,7 +315,7 @@ func TestOrganizeParsesPlacements(t *testing.T) {
 	if !strings.Contains(gotUser, "Reading / Rust") || !strings.Contains(gotUser, "1 | One | https://one.test") {
 		t.Errorf("prompt = %q", gotUser)
 	}
-	if _, err := Organize(context.Background(), c, nil, make([]Item, MaxOrganizeBatch+1)); err == nil {
+	if _, err := Organize(context.Background(), c, nil, make([]Item, MaxOrganizeBatch+1), ""); err == nil {
 		t.Error("an oversized batch was accepted")
 	}
 }
@@ -330,5 +330,27 @@ func TestLanguageName(t *testing.T) {
 		if _, err := languageName(bad); err == nil {
 			t.Errorf("%q was accepted", bad)
 		}
+	}
+}
+
+func TestOrganizeWithinAFolderDropsAnswersOutsideIt(t *testing.T) {
+	var gotSystem string
+	c := chatFunc(func(system, user string) string {
+		gotSystem = system
+		return `[{"n":1,"folder":"Reading / Rust"},{"n":2,"folder":"Reading"},{"n":3,"folder":"Cooking"},{"n":4,"folder":"reading / New topic"}]`
+	})
+	items := make([]Item, 4)
+	got, err := Organize(context.Background(), c, []string{"Reading", "Reading / Rust"}, items, "Reading")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"Reading / Rust", "", "", "Reading / New topic"}
+	for i, p := range got {
+		if p.Folder != want[i] && !(i == 3 && strings.EqualFold(p.Folder, want[i])) {
+			t.Errorf("placement %d = %q, want %q", i, p.Folder, want[i])
+		}
+	}
+	if !strings.Contains(gotSystem, `"Reading"`) || !strings.Contains(gotSystem, "tidy") {
+		t.Errorf("system prompt = %q", gotSystem)
 	}
 }

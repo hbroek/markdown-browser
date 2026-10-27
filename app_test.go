@@ -518,7 +518,7 @@ func TestSortTheUnfiled(t *testing.T) {
 		t.Fatal(err)
 	}
 	batch := []FilingInput{{ID: one.ID, Title: one.Title, URL: one.URL}, {ID: two.ID, Title: two.Title, URL: two.URL}, {ID: three.ID, Title: three.Title, URL: three.URL}}
-	choices, err := a.SuggestFolders("", batch, []string{"Food"})
+	choices, err := a.SuggestFolders("", batch, []string{"Food"}, "")
 	if err != nil || len(choices) != 3 || choices[0].ID != one.ID || choices[1].Folder != "Food / Recipes" || choices[2].Folder != "" {
 		t.Fatalf("choices = %+v, %v", choices, err)
 	}
@@ -584,5 +584,71 @@ func TestReadingTools(t *testing.T) {
 	}
 	if !strings.Contains(sent, "Link: http://x.test/1") || !strings.Contains(sent, "digest") {
 		t.Errorf("the digest was not given the entry links: %s", sent)
+	}
+}
+
+func TestTidyAFolder(t *testing.T) {
+	a := testApp(t, &miniLinkaGoGo{})
+	s, _ := a.store()
+	ctx := context.Background()
+	reading, _ := s.SaveFolder(ctx, bookmarks.Folder{Name: "Reading"})
+	rust, _ := s.SaveFolder(ctx, bookmarks.Folder{Name: "Rust", ParentID: reading.ID})
+	s.SaveFolder(ctx, bookmarks.Folder{Name: "Cooking"})
+	one, _ := s.SaveBookmark(ctx, bookmarks.Bookmark{Title: "Async", URL: "https://one.test/", FolderID: reading.ID})
+	two, _ := s.SaveBookmark(ctx, bookmarks.Bookmark{Title: "Pasta", URL: "https://two.test/", FolderID: reading.ID})
+
+	var sent string
+	llm := aiServer(t, `[{"n":1,"folder":"Reading / Rust"},{"n":2,"folder":"Cooking"}]`, &sent, nil)
+	if err := a.SaveAI(AIInput{Preset: "custom", BaseURL: llm.URL + "/v1", Model: "m"}, ""); err != nil {
+		t.Fatal(err)
+	}
+	here, err := a.BookmarksIn(reading.ID)
+	if err != nil || len(here) != 2 {
+		t.Fatalf("BookmarksIn = %+v, %v", here, err)
+	}
+	choices, err := a.SuggestFolders("", []FilingInput{{ID: one.ID, Title: "Async", URL: one.URL}, {ID: two.ID, Title: "Pasta", URL: two.URL}}, nil, "Reading")
+	if err != nil || len(choices) != 2 || choices[0].Folder != "Reading / Rust" || choices[1].Folder != "" {
+		t.Fatalf("choices = %+v, %v", choices, err)
+	}
+	if strings.Contains(sent, "Cooking") || !strings.Contains(sent, "Reading / Rust") {
+		t.Errorf("the model should see only the folder and what is under it: %s", sent)
+	}
+	res, err := a.ApplyFiling([]Move{{ID: one.ID, Folder: "Reading / Rust"}})
+	if err != nil || res.Moved != 1 || res.Created != 0 {
+		t.Fatalf("result = %+v, %v", res, err)
+	}
+	if b, _ := s.Bookmark(ctx, one.ID); b.FolderID != rust.ID {
+		t.Errorf("bookmark is in folder %q", b.FolderID)
+	}
+}
+
+func TestCompareTabs(t *testing.T) {
+	a := testApp(t, &miniLinkaGoGo{})
+	a.fetcher = fetch.NewFetcher(a.auth, nil)
+	var sent string
+	llm := aiServer(t, "## In common\n\nBoth are about futures.", &sent, nil)
+	pages := pageServer(t)
+	other := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/markdown")
+		io.WriteString(w, "# Other\n\nThreads are heavy.")
+	}))
+	defer other.Close()
+	if err := a.SaveAI(AIInput{Preset: "custom", BaseURL: llm.URL + "/v1", Model: "m"}, ""); err != nil {
+		t.Fatal(err)
+	}
+	r, err := a.CompareTabs("", []string{pages.URL, other.URL}, "memory use")
+	if err != nil || !strings.Contains(r.HTML, "In common") || r.Source != "m" {
+		t.Fatalf("CompareTabs = %+v, %v", r, err)
+	}
+	for _, want := range []string{"Futures are lazy", "Threads are heavy", "Page 2", "memory use"} {
+		if !strings.Contains(sent, want) {
+			t.Errorf("the model was not sent %q: %s", want, sent)
+		}
+	}
+	if _, err := a.CompareTabs("", []string{pages.URL}, ""); err == nil {
+		t.Error("one page was compared")
+	}
+	if _, err := a.CompareTabs("", make([]string, 7), ""); err == nil {
+		t.Error("seven pages were compared")
 	}
 }

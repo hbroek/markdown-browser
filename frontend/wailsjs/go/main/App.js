@@ -58,6 +58,10 @@ export function CloseTab(arg1) {
   return window['go']['main']['App']['CloseTab'](arg1);
 }
 
+export function CompareTabs(arg1, arg2, arg3) {
+  return window['go']['main']['App']['CompareTabs'](arg1, arg2, arg3);
+}
+
 export function Credentials() {
   return window['go']['main']['App']['Credentials']();
 }
@@ -146,6 +150,10 @@ export function SaveCredential(arg1) {
   return window['go']['main']['App']['SaveCredential'](arg1);
 }
 
+export function SavePage(arg1) {
+  return window['go']['main']['App']['SavePage'](arg1);
+}
+
 export function SavedConversation(arg1) {
   return window['go']['main']['App']['SavedConversation'](arg1);
 }
@@ -158,8 +166,8 @@ export function SuggestBookmark(arg1, arg2) {
   return window['go']['main']['App']['SuggestBookmark'](arg1, arg2);
 }
 
-export function SuggestFolders(arg1, arg2, arg3) {
-  return window['go']['main']['App']['SuggestFolders'](arg1, arg2, arg3);
+export function SuggestFolders(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['SuggestFolders'](arg1, arg2, arg3, arg4);
 }
 
 export function SummarizePage(arg1, arg2) {

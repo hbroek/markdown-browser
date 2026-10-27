@@ -1,6 +1,7 @@
-// "Sort unfiled": the AI proposes a folder for each bookmark that is in no folder.
+// "Sort unfiled" and "Tidy folder": the AI proposes a folder for each bookmark that is in no
+// folder, or sorts the bookmarks of one overgrown folder into subfolders of it.
 // Nothing is moved until the proposals have been reviewed in a table and applied.
-import {BookmarkFolders, UnfiledBookmarks, SuggestFolders, ApplyFiling} from '../wailsjs/go/main/App';
+import {BookmarkFolders, BookmarksIn, UnfiledBookmarks, SuggestFolders, ApplyFiling} from '../wailsjs/go/main/App';
 import {aiReady, describeProvider, openAI, newRequestId, cancelRequest} from './ai.js';
 
 const $ = (id) => document.getElementById(id);
@@ -11,7 +12,8 @@ const BATCH = 50;      // bookmarks filed per request (ai.MaxOrganizeBatch)
 const SEP = ' / ';     // joins the names in a folder path (ai.FolderSep)
 
 let onChange = () => {};
-let unfiled = [];      // bookmarks in no folder
+let scope = null;      // {id, path} of the folder being tidied; null when sorting the unfiled
+let unfiled = [];      // the bookmarks to place: those in no folder, or those directly in the tidied folder
 let known = new Set(); // lower-case paths of the folders that exist
 let stage = 'setup';   // setup, run or review
 let results = [];      // {bookmark, folder}, one per bookmark that was asked about
@@ -29,14 +31,14 @@ const el = (tag, props = {}, ...children) => {
 };
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-/** Folder paths such as "Reading / Rust", from the flat folder list. */
+/** Folder paths such as "Reading / Rust" with their ids, from the flat folder list. */
 function pathsOf(folders) {
     const byId = new Map(folders.map((f) => [f.id, f]));
     return folders.map((f) => {
         const names = [f.name];
         for (let p = byId.get(f.parentId), n = 0; p && n < 20; p = byId.get(p.parentId), n++) names.unshift(p.name);
-        return names.join(SEP);
-    }).sort((a, b) => a.localeCompare(b));
+        return {id: f.id, path: names.join(SEP)};
+    }).sort((a, b) => a.path.localeCompare(b.path));
 }
 
 function show(next) {
@@ -50,27 +52,42 @@ function show(next) {
     $('org-count').textContent = '';
 }
 
-export async function openOrganize() {
+/**
+ * Opens the dialog to sort the bookmarks that are in no folder, or, with a folder id,
+ * to tidy that folder's own bookmarks into subfolders of it.
+ */
+export async function openOrganize({folderId = ''} = {}) {
     if (!(await aiReady())) return openAI();
     say('');
     show('setup');
     results = [];
+    scope = null;
     $('org-go').disabled = true;
-    $('org-summary').textContent = 'Looking for unfiled bookmarks…';
+    $('org-title').textContent = 'Sort unfiled bookmarks with AI';
+    $('org-summary').textContent = 'Looking for bookmarks\u2026';
     if (!dialog.open) dialog.showModal();
     try {
         const folders = (await BookmarkFolders()) ?? [];
-        known = new Set(pathsOf(folders).map((p) => p.toLowerCase()));
-        $('org-folders').replaceChildren(...pathsOf(folders).map((p) => el('option', {value: p})));
-        unfiled = (await UnfiledBookmarks()) ?? [];
+        const paths = pathsOf(folders);
+        known = new Set(paths.map((p) => p.path.toLowerCase()));
+        $('org-folders').replaceChildren(...paths.map((p) => el('option', {value: p.path})));
+        const folder = folderId ? paths.find((p) => p.id === folderId) : null;
+        if (folder) {
+            scope = folder;
+            $('org-title').textContent = `Tidy \u201C${folder.path}\u201D with AI`;
+            unfiled = (await BookmarksIn(folderId)) ?? [];
+        } else {
+            unfiled = (await UnfiledBookmarks()) ?? [];
+        }
     } catch (e) {
         unfiled = [];
         say(String(e), true);
     }
     const where = await describeProvider();
+    const what = scope ? `${plural(unfiled.length, 'bookmark')} directly in \u201C${scope.path}\u201D` : `${plural(unfiled.length, 'bookmark')} in no folder`;
     $('org-summary').textContent = unfiled.length
-        ? `${plural(unfiled.length, 'bookmark')} in no folder. Their titles, addresses, keywords and descriptions would be sent to ${where}, in ${plural(Math.ceil(unfiled.length / BATCH), 'request')}.`
-        : 'Every bookmark is already in a folder.';
+        ? `${what}. Their titles, addresses, keywords and descriptions would be sent to ${where}, in ${plural(Math.ceil(unfiled.length / BATCH), 'request')}.`
+        : (scope ? 'There are no bookmarks directly in this folder.' : 'Every bookmark is already in a folder.');
     $('org-go').disabled = unfiled.length === 0;
 }
 
@@ -92,7 +109,7 @@ async function start() {
         try {
             const choices = (await SuggestFolders(id, batch.map((b) => ({
                 id: b.id, title: b.title, url: b.url, description: b.description, keywords: b.keywords ?? [],
-            })), [...proposed])) ?? [];
+            })), [...proposed], scope?.path ?? '')) ?? [];
             if (run.stopped) break;
             const byId = new Map(choices.map((c) => [c.id, c.folder]));
             for (const b of batch) {
@@ -135,7 +152,7 @@ function review() {
             for (const box of table.querySelectorAll('.pick')) box.checked = e.target.checked;
             countPicked();
         }})),
-        el('th', {textContent: 'Bookmark'}), el('th', {textContent: 'Move to folder'})));
+        el('th', {textContent: 'Bookmark'}), el('th', {textContent: scope ? 'Move into' : 'Move to folder'})));
     const rows = results.map((r) => {
         const b = r.bookmark;
         const row = el('tr', {className: r.folder ? '' : 'org-nofit'},
@@ -199,7 +216,7 @@ async function apply() {
 
 export function initOrganize(changed) {
     onChange = changed;
-    $('bookmarks-organize').addEventListener('click', openOrganize);
+    $('bookmarks-organize').addEventListener('click', () => openOrganize());
     $('org-cancel').addEventListener('click', () => {
         if (stage === 'run') return stop(); // goes on to the review of what was filed so far
         dialog.close();

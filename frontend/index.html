@@ -219,7 +219,7 @@
     <h2 id="org-title">Sort unfiled bookmarks with AI</h2>
     <div id="org-setup" class="stack">
         <p id="org-summary" class="note"></p>
-        <p class="note">The AI sees the title, address, keywords and description of each unfiled bookmark, and the names of your folders. It does not read the pages. Nothing is moved until you have reviewed the suggestions.</p>
+        <p class="note">The AI sees the title, address, keywords and description of each of these bookmarks, and the names of your folders. It does not read the pages. Nothing is moved until you have reviewed the suggestions.</p>
     </div>
     <div id="org-run" class="stack" hidden>
         <progress id="org-progress" max="1" value="0"></progress>
@@ -236,6 +236,25 @@
         <span class="spacer"></span>
         <button type="button" id="org-cancel">Cancel</button>
         <button type="button" id="org-go" class="primary">Start</button>
+    </div>
+</dialog>
+<dialog id="cmp-dialog" class="wide" aria-labelledby="cmp-title">
+    <h2 id="cmp-title">Compare open tabs with AI</h2>
+    <div id="cmp-setup" class="stack">
+        <p id="cmp-summary" class="note"></p>
+        <div id="cmp-tabs" class="stack" role="group" aria-label="Pages to compare"></div>
+        <label>What should I compare? (optional) <input type="text" id="cmp-focus" maxlength="500" placeholder="e.g. price, privacy, how they handle errors" autocomplete="off"></label>
+    </div>
+    <div id="cmp-run" class="stack" hidden></div>
+    <div id="cmp-result" class="stack" hidden>
+        <div id="cmp-body" class="markdown"></div>
+        <p id="cmp-source" class="note"></p>
+    </div>
+    <p id="cmp-status" role="status"></p>
+    <div class="dialog-actions">
+        <span class="spacer"></span>
+        <button type="button" id="cmp-cancel">Close</button>
+        <button type="button" id="cmp-go" class="primary">Compare</button>
     </div>
 </dialog>
 <dialog id="ai-dialog" aria-labelledby="ai-title">
@@ -260,5 +279,6 @@
     </form>
 </dialog>
 <script src="./src/main.js" type="module"></script>
+<div id="toast" role="status" aria-live="polite" hidden></div>
 </body>
 </html>

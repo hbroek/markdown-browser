@@ -36,6 +36,8 @@ export function ClearNetworkLog():Promise<void>;
 
 export function CloseTab(arg1:number):Promise<void>;
 
+export function CompareTabs(arg1:string,arg2:Array<string>,arg3:string):Promise<main.AISummary>;
+
 export function Credentials():Promise<Array<auth.Info>>;
 
 export function DeleteBookmark(arg1:string):Promise<void>;
@@ -80,13 +82,15 @@ export function SaveConversation(arg1:string,arg2:Array<main.ChatTurn>):Promise<
 
 export function SaveCredential(arg1:auth.Credential):Promise<string>;
 
+export function SavePage(arg1:page.Page):Promise<string>;
+
 export function SavedConversation(arg1:string):Promise<Array<main.ChatTurn>>;
 
 export function SearchBookmarks(arg1:string):Promise<Array<bookmarks.Bookmark>>;
 
 export function SuggestBookmark(arg1:string,arg2:string):Promise<ai.Suggestion>;
 
-export function SuggestFolders(arg1:string,arg2:Array<main.FilingInput>,arg3:Array<string>):Promise<Array<main.FolderChoice>>;
+export function SuggestFolders(arg1:string,arg2:Array<main.FilingInput>,arg3:Array<string>,arg4:string):Promise<Array<main.FolderChoice>>;
 
 export function SummarizePage(arg1:string,arg2:string):Promise<main.AISummary>;
 

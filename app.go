@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,6 +24,7 @@ import (
 	"markdown-browser/internal/imgproxy"
 	"markdown-browser/internal/localfile"
 	"markdown-browser/internal/page"
+	"markdown-browser/internal/render"
 	"markdown-browser/internal/settings"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -534,4 +536,28 @@ func (a *App) assetHandler() http.Handler {
 	}))
 	mux.Handle("/", localfile.Handler)
 	return mux
+}
+
+// SavePage asks where to save the page and writes it as markdown: a markdown page
+// as it is, a feed as a document of its entries, any other page as its title and
+// links. It returns the path, or "" when the dialog was cancelled.
+func (a *App) SavePage(p page.Page) (string, error) {
+	if p.Kind == page.KindError || p.URL == "" {
+		return "", errors.New("there is no page to save")
+	}
+	md := p.Markdown()
+	if base, err := url.Parse(p.URL); err == nil && p.Kind == page.KindMarkdown {
+		if feed, ok := render.FeedMarkdown([]byte(p.Source), base); ok { // the source of a feed is XML
+			md = feed
+		}
+	}
+	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:           "Save page",
+		DefaultFilename: p.FileName(),
+		Filters:         []runtime.FileFilter{{DisplayName: "Markdown (*.md)", Pattern: "*.md"}},
+	})
+	if err != nil || path == "" {
+		return "", err
+	}
+	return path, os.WriteFile(path, []byte(md), 0o644)
 }

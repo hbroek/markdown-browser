@@ -50,7 +50,7 @@ const row = (label, onClick, {disabled = false, title = ''} = {}) => {
     return b;
 };
 
-/** `host.page()` gives the page of the active tab; `host.run(tool, option)` runs a tool on it. */
+/** `host.page()` gives the page of the active tab; `host.run(tool, option)` runs a tool on it; `host.compare()` opens the tab comparison. */
 export function initReading(host) {
     const btn = $('reading');
     const menu = $('reading-menu');
@@ -74,6 +74,7 @@ export function initReading(host) {
         menu.replaceChildren(
             row('Outline of this page', () => { close(); host.run('outline'); }),
             translate,
+            row('Compare open tabs\u2026', () => { close(); host.compare(); }),
             ...(isFeed(p) ? [row('Digest of this feed', () => { close(); host.run('digest'); })] : []),
             heading('Selected text'),
             row('Explain the selection', () => { close(); askNow(`Explain this passage from the page, in plain language and with the context of the page:\n\n"${selection}"`); }, {disabled: !selection, title: note}),

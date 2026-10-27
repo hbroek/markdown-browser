@@ -14,6 +14,7 @@ title plus link list when a page is not markdown. Go backend, HTML/CSS/JS fronte
 - `http`, `https` and `file://`; drop a `.md` file on the window to open it. Relative links and images work,
   including local images for pages opened from disk
 - **History** in the ☰ menu generates a markdown page of everything you visited
+- **Save page** (☰ menu, Cmd/Ctrl+S) writes a markdown page as it is, a feed as a document of its entries, and any other page as its title, address and links. The **Copy markdown** button at a page's top right (Cmd/Ctrl+Shift+C) puts the markdown on the clipboard.
 - Tabs, each with its own back/forward history; open tabs are restored on the next start (only the selected one is loaded right away). Cmd/Ctrl+click or middle-click a link to open it in a background tab; click a bookmark with Cmd/Ctrl, or right-click it, to open it in a new tab.
 - A network console (hidden by default; `>_` button or Cmd/Ctrl+J) lists every request with its status code;
   click the bar to see request and response headers, timing and size. Cookie and token values are hidden
@@ -27,6 +28,7 @@ title plus link list when a page is not markdown. Go backend, HTML/CSS/JS fronte
 | Cmd/Ctrl+R | Reload |
 | Alt+← / Alt+→ (Cmd+[ / Cmd+] on Mac) | Back / forward |
 | Cmd/Ctrl+U | Toggle markdown source |
+| Cmd/Ctrl+S | Save the page as a markdown file (also in the ☰ menu) |
 | Cmd/Ctrl+Shift+C | Copy the page's markdown to the clipboard (the button at the page's top right does the same) |
 | Cmd/Ctrl+D | Add or edit the bookmark for this page |
 | Cmd/Ctrl+B | Open the bookmarks panel and move into it (again to close it) |
@@ -107,6 +109,14 @@ conversation is saved with the page. The page text goes to your AI provider, as 
 existing folders and proposes a new one only when nothing fits. It sends the title, address, keywords and description of each unfiled
 bookmark and the names of your folders (50 bookmarks per request), not the pages. You review a table, change any folder (typing a new
 path creates it), untick what you do not want, and only then are bookmarks moved.
+
+**Tidy into subfolders** (right-click a folder, next to **Tag with AI**) does the same for the bookmarks directly in one overgrown folder: the AI
+sorts them into subfolders of it, preferring the ones that exist, and proposes new ones where several bookmarks share a topic. It never moves a
+bookmark outside that folder, and you review the table before anything moves.
+
+**Compare open tabs** (in the reading tools menu) opens a dialog listing your open tabs. Tick two to six, optionally say what to compare, and the
+AI writes what the pages have in common and where they differ, with a table when the pages describe comparable things. The tab bar itself has no
+checkboxes; the choosing happens in the dialog. The pages share one budget of text, so long pages are cut short.
 
 - The API key is kept in the system keychain, never in `settings.json`.
 - A summary, suggestion or question sends the page's text (cut to about 30,000 characters) to the provider. For a server that is not on this
@@ -199,10 +209,7 @@ post to Mastodon or Bluesky with an app password kept in the keychain), and save
 
 **AI features**, all through the same provider (see **AI assistant** above), in this order:
 
-1. **More organizing.** Tidy an overgrown folder into subfolders, or propose a folder structure for a messy collection (sorting the unfiled is done).
-2. **Compare tabs.** Summarize several open tabs together.
-3. **Save as notes.** Turn the current page into a local markdown summary with a link back.
-4. **Native Claude backend.** The Messages API for Claude-only features such as prompt caching, behind the same provider interface.
+1. **Native Claude backend.** The Messages API for Claude-only features such as prompt caching, behind the same provider interface.
 
 ## Layout
 

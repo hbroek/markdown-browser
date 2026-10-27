@@ -348,6 +348,39 @@ func (a *App) ReadPage(requestID, rawURL, tool, option string) (AISummary, error
 	return AISummary{HTML: html, Source: a.aiSource(), Millis: took.Milliseconds()}, err
 }
 
+// CompareTabs compares the text of several pages, optionally around a question.
+func (a *App) CompareTabs(requestID string, urls []string, focus string) (AISummary, error) {
+	c, err := a.aiClient()
+	if err != nil {
+		return AISummary{}, err
+	}
+	if len(urls) < 2 {
+		return AISummary{}, errors.New("choose at least two pages to compare")
+	}
+	if len(urls) > ai.MaxCompareDocs {
+		return AISummary{}, fmt.Errorf("at most %d pages can be compared at once", ai.MaxCompareDocs)
+	}
+	ctx, done := a.aiContext(requestID)
+	defer done()
+	docs := make([]ai.Doc, 0, len(urls))
+	for _, u := range urls {
+		title, text, err := a.pageText(ctx, u)
+		if err != nil {
+			return AISummary{}, cancelled(ctx, fmt.Errorf("%s: %w", u, err))
+		}
+		docs = append(docs, ai.Doc{Title: title, URL: u, Text: text})
+	}
+	started := time.Now()
+	reply, err := ai.Compare(ctx, c, docs, focus)
+	if err != nil {
+		return AISummary{}, cancelled(ctx, err)
+	}
+	took := time.Since(started)
+	base, _ := url.Parse(urls[0])
+	html, _, err := render.Markdown([]byte(reply), base)
+	return AISummary{HTML: html, Source: a.aiSource(), Millis: took.Milliseconds()}, err
+}
+
 // AskPage answers a question about the page, continuing the conversation in history.
 func (a *App) AskPage(requestID, rawURL string, history []ai.Message, question string) (AIAnswer, error) {
 	c, err := a.aiClient()
@@ -537,8 +570,9 @@ func (a *App) UnfiledBookmarks() ([]bookmarks.Bookmark, error) {
 }
 
 // SuggestFolders asks the model where unfiled bookmarks belong. proposed lists
-// folders earlier batches asked to create, so later batches reuse them.
-func (a *App) SuggestFolders(requestID string, batch []FilingInput, proposed []string) ([]FolderChoice, error) {
+// folders earlier batches asked to create, so later batches reuse them. within is
+// the path of a folder being tidied, or "" when sorting the unfiled.
+func (a *App) SuggestFolders(requestID string, batch []FilingInput, proposed []string, within string) ([]FolderChoice, error) {
 	c, err := a.aiClient()
 	if err != nil {
 		return nil, err
@@ -562,6 +596,17 @@ func (a *App) SuggestFolders(requestID string, batch []FilingInput, proposed []s
 		paths = append(paths, path)
 		seen[strings.ToLower(path)] = true
 	}
+	within = ai.CleanFolderPath(within)
+	if within != "" { // only the folder and what is under it matters
+		prefix := strings.ToLower(within) + ai.FolderSep
+		kept := paths[:0]
+		for _, p := range paths {
+			if l := strings.ToLower(p); l == strings.ToLower(within) || strings.HasPrefix(l, prefix) {
+				kept = append(kept, p)
+			}
+		}
+		paths = kept
+	}
 	sort.Strings(paths)
 	for _, p := range proposed {
 		if p = ai.CleanFolderPath(p); p != "" && !seen[strings.ToLower(p)] {
@@ -573,7 +618,7 @@ func (a *App) SuggestFolders(requestID string, batch []FilingInput, proposed []s
 	for i, b := range batch {
 		items[i] = ai.Item{Ref: i, Title: b.Title, URL: b.URL, Keywords: strings.Join(b.Keywords, ", "), Description: b.Description}
 	}
-	placed, err := ai.Organize(ctx, c, paths, items)
+	placed, err := ai.Organize(ctx, c, paths, items, within)
 	if err != nil {
 		return nil, cancelled(ctx, err)
 	}

@@ -5,6 +5,7 @@ import {BookmarkFolders, BookmarksIn, SaveBookmark, SaveBookmarkFolder, ImportBo
 import {openBookmark, openFolder, setFolderHint} from './bookmarks.js';
 import {openStorage} from './storage.js';
 import {openTagging} from './tagging.js';
+import {openOrganize} from './organize.js';
 
 const $ = (id) => document.getElementById(id);
 const panel = $('bookmarks-panel');
@@ -19,6 +20,34 @@ let onOpenUrl = () => {};
 let onChanged = () => {};
 const actions = new WeakMap(); // row -> what its keys do
 let parentOf = new Map();  // folder id -> parent folder id, for refusing a move into itself
+
+/** A small menu at the pointer; it closes on any click elsewhere or Escape. */
+function folderMenu(x, y, entries) {
+    document.getElementById('folder-menu')?.remove();
+    const menu = Object.assign(document.createElement('div'), {id: 'folder-menu', className: 'menu settings-menu'});
+    menu.setAttribute('role', 'menu');
+    const close = () => {
+        menu.remove();
+        document.removeEventListener('mousedown', away, true);
+        document.removeEventListener('keydown', key, true);
+    };
+    const away = (e) => { if (!menu.contains(e.target)) close(); };
+    const key = (e) => { if (e.key === 'Escape') close(); };
+    for (const [label, run] of entries) {
+        const b = Object.assign(document.createElement('button'), {type: 'button', className: 'menu-row', textContent: label});
+        b.setAttribute('role', 'menuitem');
+        b.addEventListener('click', () => { close(); run(); });
+        menu.append(b);
+    }
+    document.body.append(menu);
+    menu.style.position = 'fixed';
+    menu.style.right = 'auto';
+    menu.style.left = `${Math.min(x, window.innerWidth - menu.offsetWidth - 8)}px`;
+    menu.style.top = `${Math.min(y, window.innerHeight - menu.offsetHeight - 8)}px`;
+    document.addEventListener('mousedown', away, true);
+    document.addEventListener('keydown', key, true);
+    menu.querySelector('button')?.focus();
+}
 
 function stored(key, value) {
     try {
@@ -63,9 +92,12 @@ function folderRow(f, depth) {
         el('span', {textContent: `📁 ${f.name}`}));
     const row = newRow(`f:${f.id}`, f.id, depth, label, pencil(`Edit folder ${f.name}`, edit));
     row.classList.add('folder');
-    row.addEventListener('contextmenu', (e) => { // right click: tag this folder's bookmarks with AI
+    row.addEventListener('contextmenu', (e) => { // right click: AI tools for this folder
         e.preventDefault();
-        openTagging({folderId: f.id});
+        folderMenu(e.clientX, e.clientY, [
+            ['Tag with AI\u2026', () => openTagging({folderId: f.id})],
+            ['Tidy into subfolders with AI\u2026', () => openOrganize({folderId: f.id})],
+        ]);
     });
     row.setAttribute('aria-expanded', String(isOpen));
     row.setAttribute('aria-label', f.name);
