@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -20,8 +21,12 @@ func TestPutGetPersistsAndIgnoresFragment(t *testing.T) {
 	if len(got) != 2 || got[1].Text != "Hello." || got[1].Source != "m" || got[1].Millis != 1200 {
 		t.Fatalf("Get = %+v", got)
 	}
-	if info, err := os.Stat(path); err != nil || info.Mode().Perm() != 0o600 {
-		t.Errorf("file = %v, %v; want mode 0600", info, err)
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 { // Windows has no Unix modes
+		t.Errorf("file mode = %v, want 0600", info.Mode().Perm())
 	}
 	if len(s.Get("https://x.test/other")) != 0 {
 		t.Error("another page got the conversation")

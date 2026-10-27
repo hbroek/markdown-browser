@@ -28,6 +28,7 @@ type Turn struct {
 
 type entry struct {
 	Updated time.Time `json:"updated"`
+	Seq     uint64    `json:"seq"` // grows with every save; the clock can tie, this cannot
 	Turns   []Turn    `json:"turns"`
 }
 
@@ -36,6 +37,7 @@ type Store struct {
 	mu      sync.Mutex
 	path    string // empty keeps everything in memory
 	entries map[string]entry
+	seq     uint64
 }
 
 // Open loads the file at path. A missing or damaged file gives an empty store.
@@ -44,6 +46,11 @@ func Open(path string) *Store {
 	if data, err := os.ReadFile(path); err == nil {
 		if json.Unmarshal(data, &s.entries) != nil || s.entries == nil {
 			s.entries = map[string]entry{}
+		}
+	}
+	for _, e := range s.entries {
+		if e.Seq > s.seq {
+			s.seq = e.Seq
 		}
 	}
 	return s
@@ -79,7 +86,8 @@ func (s *Store) Put(url string, turns []Turn) {
 	if len(kept) == 0 {
 		delete(s.entries, key(url))
 	} else {
-		s.entries[key(url)] = entry{Updated: time.Now(), Turns: kept}
+		s.seq++
+		s.entries[key(url)] = entry{Updated: time.Now(), Seq: s.seq, Turns: kept}
 	}
 	s.trim()
 	s.save()
@@ -116,7 +124,7 @@ func (s *Store) trim() {
 	for u := range s.entries {
 		urls = append(urls, u)
 	}
-	sort.Slice(urls, func(i, j int) bool { return s.entries[urls[i]].Updated.After(s.entries[urls[j]].Updated) })
+	sort.Slice(urls, func(i, j int) bool { return s.entries[urls[i]].Seq > s.entries[urls[j]].Seq }) // newest first
 	for _, u := range urls[MaxPages:] {
 		delete(s.entries, u)
 	}
