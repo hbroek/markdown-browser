@@ -38,7 +38,7 @@ export function markdown(p) {
 }
 
 /** A busy line with a spinner and the seconds waited, for models that take their time. */
-function waiting(text) {
+export function waiting(text) {
     const p = el('p', {className: 'note busy', textContent: `${text}\u2026`});
     const started = Date.now();
     const timer = setInterval(() => {
@@ -49,7 +49,7 @@ function waiting(text) {
 }
 
 /** 4.2s under ten seconds, then whole seconds, then minutes. */
-function seconds(ms) {
+export function seconds(ms) {
     const s = ms / 1000;
     if (s < 10) return `${s.toFixed(1)}s`;
     if (s < 100) return `${Math.round(s)}s`;
@@ -57,8 +57,9 @@ function seconds(ms) {
 }
 
 /** The AI summary shown above a page: loading, the summary, or what went wrong. */
-export function summary(s, onClose) {
-    const body = s.state === 'loading' ? waiting('Reading the page and asking the model')
+export function summary(s, onClose, onCancel) {
+    const body = s.state === 'loading' ? el('div', {}, waiting('Reading the page and asking the model'),
+        el('button', {type: 'button', className: 'summary-cancel', textContent: 'Cancel', onclick: onCancel}))
         : s.state === 'error' ? el('p', {className: 'error-text', textContent: s.error})
         : el('div', {className: 'markdown', innerHTML: s.html}); // sanitized by the backend
     return el('aside', {className: 'summary', ariaLabel: 'AI summary'},

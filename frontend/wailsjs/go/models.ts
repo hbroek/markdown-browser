@@ -1,5 +1,19 @@
 export namespace ai {
 	
+	export class Message {
+	    role: string;
+	    content: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Message(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.role = source["role"];
+	        this.content = source["content"];
+	    }
+	}
 	export class Preset {
 	    id: string;
 	    name: string;
@@ -287,6 +301,24 @@ export namespace history {
 
 export namespace main {
 	
+	export class AIAnswer {
+	    text: string;
+	    html: string;
+	    source: string;
+	    millis: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new AIAnswer(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.text = source["text"];
+	        this.html = source["html"];
+	        this.source = source["source"];
+	        this.millis = source["millis"];
+	    }
+	}
 	export class AIInfo {
 	    presets: ai.Preset[];
 	    preset: string;
@@ -363,6 +395,38 @@ export namespace main {
 	        this.millis = source["millis"];
 	    }
 	}
+	export class BookmarkItem {
+	    bookmark: bookmarks.Bookmark;
+	    path: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BookmarkItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.bookmark = this.convertValues(source["bookmark"], bookmarks.Bookmark);
+	        this.path = source["path"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class BookmarkSettings {
 	    backend: string;
 	    root: string;
@@ -379,6 +443,26 @@ export namespace main {
 	        this.root = source["root"];
 	        this.connected = source["connected"];
 	        this.error = source["error"];
+	    }
+	}
+	export class ChatTurn {
+	    role: string;
+	    text: string;
+	    html: string;
+	    source: string;
+	    millis: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChatTurn(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.role = source["role"];
+	        this.text = source["text"];
+	        this.html = source["html"];
+	        this.source = source["source"];
+	        this.millis = source["millis"];
 	    }
 	}
 

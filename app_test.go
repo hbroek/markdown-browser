@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -10,7 +11,9 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
+	"markdown-browser/internal/ai"
 	"markdown-browser/internal/auth"
 	"markdown-browser/internal/bookmarks"
 	"markdown-browser/internal/fetch"
@@ -224,7 +227,7 @@ func TestSaveAIKeepsKeyOutOfSettingsAndNeedsConsentForRemote(t *testing.T) {
 
 func TestAIFeaturesNeedAProvider(t *testing.T) {
 	a := testApp(t, &miniLinkaGoGo{})
-	if _, err := a.SummarizePage("https://x.test/"); err == nil || !strings.Contains(err.Error(), "AI") {
+	if _, err := a.SummarizePage("", "https://x.test/"); err == nil || !strings.Contains(err.Error(), "AI") {
 		t.Errorf("SummarizePage without a provider: %v", err)
 	}
 }
@@ -239,7 +242,7 @@ func TestSummarizeAndSuggestUseThePageText(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sum, err := a.SummarizePage(pages.URL)
+	sum, err := a.SummarizePage("", pages.URL)
 	if err != nil || !strings.Contains(sum.HTML, "<strong>Futures</strong>") || sum.Source != "m" || sum.Millis < 0 {
 		t.Fatalf("SummarizePage = %+v, %v", sum, err)
 	}
@@ -254,11 +257,11 @@ func TestSummarizeAndSuggestUseThePageText(t *testing.T) {
 	if err := a.SaveAI(AIInput{Preset: "custom", BaseURL: llm2.URL + "/v1"}, ""); err != nil {
 		t.Fatal(err)
 	}
-	s, err := a.SuggestBookmark(pages.URL)
+	s, err := a.SuggestBookmark("", pages.URL)
 	if err != nil || s.Description != "About futures." || len(s.Keywords) != 2 {
 		t.Errorf("SuggestBookmark = %+v, %v", s, err)
 	}
-	if _, err := a.SummarizePage("bookmarks:search?q=x"); err == nil {
+	if _, err := a.SummarizePage("", "bookmarks:search?q=x"); err == nil {
 		t.Error("summarized a search page")
 	}
 }
@@ -304,5 +307,148 @@ func TestSummarySourceNamesTheModelOrProvider(t *testing.T) {
 		if got := a.aiSource(); got != tc.want {
 			t.Errorf("source = %q, want %q", got, tc.want)
 		}
+	}
+}
+
+func TestAskPageContinuesTheConversationAndReadsThePageOnce(t *testing.T) {
+	a := testApp(t, &miniLinkaGoGo{})
+	a.fetcher = fetch.NewFetcher(a.auth, nil)
+	var sent string
+	llm := aiServer(t, "It is **lazy**.", &sent, nil)
+	fetches := 0
+	pages := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fetches++
+		w.Header().Set("Content-Type", "text/html")
+		io.WriteString(w, `<title>Async Rust</title><p>Futures are lazy.</p>`)
+	}))
+	defer pages.Close()
+	if err := a.SaveAI(AIInput{Preset: "custom", BaseURL: llm.URL + "/v1", Model: "m"}, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	first, err := a.AskPage("", pages.URL, nil, "Are futures eager?")
+	if err != nil || !strings.Contains(first.HTML, "<strong>lazy</strong>") || first.Text != "It is **lazy**." || first.Source != "m" {
+		t.Fatalf("AskPage = %+v, %v", first, err)
+	}
+	history := []ai.Message{{Role: "user", Content: "Are futures eager?"}, {Role: "assistant", Content: first.Text}}
+	if _, err := a.AskPage("", pages.URL, history, "Why?"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(sent, "Futures are lazy") || !strings.Contains(sent, "Are futures eager?") || !strings.Contains(sent, "Why?") {
+		t.Errorf("model was sent %s", sent)
+	}
+	if fetches != 1 {
+		t.Errorf("page fetched %d times for two questions", fetches)
+	}
+	if _, err := a.AskPage("", pages.URL, nil, "  "); err == nil {
+		t.Error("empty question accepted")
+	}
+}
+
+func TestCancelStopsARunningRequest(t *testing.T) {
+	a := testApp(t, &miniLinkaGoGo{})
+	a.fetcher = fetch.NewFetcher(a.auth, nil)
+	pages := pageServer(t)
+	started, stopped := make(chan struct{}), make(chan struct{})
+	slow := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.Copy(io.Discard, r.Body) // reading the body is what lets the server notice a closed connection
+		close(started)
+		<-r.Context().Done() // hold the answer back until the caller gives up
+		close(stopped)
+	}))
+	defer slow.Close()
+	defer slow.CloseClientConnections()
+	if err := a.SaveAI(AIInput{Preset: "custom", BaseURL: slow.URL + "/v1", Model: "m"}, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	result := make(chan error, 1)
+	go func() {
+		_, err := a.AskPage("req-1", pages.URL, nil, "Why?")
+		result <- err
+	}()
+	<-started
+	a.CancelAI("req-1")
+	select {
+	case err := <-result:
+		if err == nil || err.Error() != "cancelled" {
+			t.Errorf("err = %v, want cancelled", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("AskPage did not return after CancelAI")
+	}
+	select {
+	case <-stopped:
+	case <-time.After(5 * time.Second):
+		t.Error("the request to the model was not abandoned")
+	}
+	a.CancelAI("req-1") // finished ids are forgotten; cancelling again is harmless
+}
+
+func TestSavedConversationsKeepTextAndRenderAnswers(t *testing.T) {
+	a := testApp(t, &miniLinkaGoGo{})
+	a.SaveConversation("https://x.test/a", []ChatTurn{
+		{Role: "user", Text: "Why?"},
+		{Role: "assistant", Text: "It is **lazy**.", HTML: "<script>evil()</script>", Source: "m", Millis: 900},
+	})
+	got := a.SavedConversation("https://x.test/a#top")
+	if len(got) != 2 || got[0].HTML != "" || got[1].Source != "m" || got[1].Millis != 900 {
+		t.Fatalf("SavedConversation = %+v", got)
+	}
+	if !strings.Contains(got[1].HTML, "<strong>lazy</strong>") || strings.Contains(got[1].HTML, "evil") {
+		t.Errorf("answer html = %q (must come from the saved text, not from what the page sent)", got[1].HTML)
+	}
+	if n := a.ForgetConversations(); n != 1 || len(a.SavedConversation("https://x.test/a")) != 0 {
+		t.Errorf("ForgetConversations = %d", n)
+	}
+}
+
+func TestBookmarksUnderWalksTheSubtreeWithPaths(t *testing.T) {
+	a := testApp(t, &miniLinkaGoGo{})
+	s, _ := a.store()
+	ctx := context.Background()
+	reading, _ := s.SaveFolder(ctx, bookmarks.Folder{Name: "Reading"})
+	rust, _ := s.SaveFolder(ctx, bookmarks.Folder{Name: "Rust", ParentID: reading.ID})
+	other, _ := s.SaveFolder(ctx, bookmarks.Folder{Name: "Other"})
+	s.SaveBookmark(ctx, bookmarks.Bookmark{Title: "Top", URL: "https://top.test/"})
+	s.SaveBookmark(ctx, bookmarks.Bookmark{Title: "A", URL: "https://a.test/", FolderID: reading.ID})
+	s.SaveBookmark(ctx, bookmarks.Bookmark{Title: "B", URL: "https://b.test/", FolderID: rust.ID})
+	s.SaveBookmark(ctx, bookmarks.Bookmark{Title: "C", URL: "https://c.test/", FolderID: other.ID})
+
+	all, err := a.BookmarksUnder("")
+	if err != nil || len(all) != 4 {
+		t.Fatalf("all = %+v, %v", all, err)
+	}
+	sub, err := a.BookmarksUnder(reading.ID)
+	if err != nil || len(sub) != 2 {
+		t.Fatalf("under Reading = %+v, %v", sub, err)
+	}
+	paths := map[string]string{}
+	for _, it := range sub {
+		paths[it.Bookmark.Title] = it.Path
+	}
+	if paths["A"] != "Reading" || paths["B"] != "Reading / Rust" {
+		t.Errorf("paths = %v", paths)
+	}
+	if _, err := a.BookmarksUnder("nope"); err == nil {
+		t.Error("an unknown folder was accepted")
+	}
+}
+
+func TestAIReadsAFeedAsText(t *testing.T) {
+	a := testApp(t, &miniLinkaGoGo{})
+	a.fetcher = fetch.NewFetcher(a.auth, nil)
+	feed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/xml")
+		io.WriteString(w, `<?xml version="1.0"?><rss version="2.0"><channel><title>Scripting News</title><link>http://x.test/</link>
+<item><title>First post</title><link>http://x.test/1</link><description>&lt;p&gt;Hello &lt;b&gt;world&lt;/b&gt;&lt;/p&gt;</description></item></channel></rss>`)
+	}))
+	defer feed.Close()
+	title, text, err := a.pageText(context.Background(), feed.URL)
+	if err != nil || title != "Scripting News" {
+		t.Fatalf("title = %q, %v", title, err)
+	}
+	if !strings.Contains(text, "First post") || !strings.Contains(text, "Hello world") || strings.Contains(text, "<") || strings.Contains(text, "rss") {
+		t.Errorf("text = %q; want the entries as plain text, no XML", text)
 	}
 }

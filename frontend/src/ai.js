@@ -1,5 +1,5 @@
 // The AI assistant dialog: which provider to use, and whether it may be sent page text.
-import {AISettings, SaveAI, TestAI} from '../wailsjs/go/main/App';
+import {AISettings, SaveAI, TestAI, CancelAI, ForgetConversations} from '../wailsjs/go/main/App';
 
 const $ = (id) => document.getElementById(id);
 const dialog = $('ai-dialog');
@@ -47,6 +47,12 @@ $('ai-preset').addEventListener('change', () => {
 });
 $('ai-url').addEventListener('input', refresh);
 
+/** An id for one AI request, so it can be cancelled while it runs. */
+export const newRequestId = () => (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);
+
+/** Stops the request with this id (and the call to the model) on the Go side. */
+export const cancelRequest = (id) => { CancelAI(id).catch(() => {}); };
+
 export async function aiReady() {
     const i = await AISettings();
     return i.configured && i.consented;
@@ -73,6 +79,14 @@ export async function openAI() {
 
 export function initAI() {
     $('ai-cancel').addEventListener('click', () => dialog.close());
+    $('ai-forget').addEventListener('click', async () => {
+        try {
+            const n = await ForgetConversations();
+            say(n ? `Deleted the saved conversations for ${n} page${n === 1 ? '' : 's'}.` : 'There are no saved conversations.');
+        } catch (e) {
+            say(String(e), true);
+        }
+    });
     $('ai-test').addEventListener('click', async () => {
         say('Asking the server\u2026', false, true);
         try {

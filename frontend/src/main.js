@@ -7,8 +7,10 @@ import {initConsole, toggleConsole} from './console.js';
 import {initBookmarks, openBookmark} from './bookmarks.js';
 import {initPanel, panelShortcut, refreshPanel} from './bookmarkpanel.js';
 import {initStorage} from './storage.js';
+import {initTagging} from './tagging.js';
 import {initMenu, showCredentialState} from './theme.js';
-import {initAI, openAI, aiReady} from './ai.js';
+import {initAI, openAI, aiReady, newRequestId, cancelRequest} from './ai.js';
+import {initAsk, refreshAsk, toggleAsk} from './ask.js';
 import {initCredentials, openCredentials, credentialOrigins} from './creds.js';
 
 const $ = (id) => document.getElementById(id);
@@ -16,7 +18,7 @@ const address = $('address');
 const content = $('content');
 const sourceBtn = $('source');
 
-// Each tab is {id, page, pending, summary, showSource, seq, loading, scroll}. A restored tab
+// Each tab is {id, page, pending, summary, chat, chatTried, showSource, seq, loading, scroll}. A restored tab
 // that was not selected has only `pending`, its address, until it is first shown.
 // The Go side keeps the tab's back/forward history under the same id; the last page shown is kept here
 // so switching tabs does not fetch again.
@@ -37,7 +39,7 @@ function render() {
             : p.kind === 'markdown' ? (showSource ? view.source(p) : view.markdown(p))
             : p.kind === 'fallback' ? view.fallback(p, (origin) => openCredentials({origin}))
             : view.error(p, () => goActive((id) => Navigate(id, p.url)), (page) => openCredentials({origin: page.origin, kind: page.authScheme === 'basic' ? 'basic' : page.authScheme === 'bearer' ? 'bearer' : 'cookie'})));
-    content.replaceChildren(...(active?.summary ? [view.summary(active.summary, closeSummary), body] : [body]));
+    content.replaceChildren(...(active?.summary ? [view.summary(active.summary, closeSummary, cancelSummary), body] : [body]));
     content.scrollTop = 0;
 }
 
@@ -60,6 +62,7 @@ function display() {
     $('reload').disabled = !p?.url;
     document.body.classList.toggle('loading', Boolean(active?.loading));
     render();
+    refreshAsk();
     updateCredentialIndicator();
     updateBookmarkIndicator();
 }
@@ -68,6 +71,7 @@ function show(tab, p) {
     tab.page = p;
     tab.pending = '';
     tab.summary = null;
+    if (tab.chat && tab.chat.url !== p.url) tab.chat = null; // a conversation is about one page; it is saved and comes back with the page
     tab.showSource = false;
     if (tab === active) display();
     renderTabs();
@@ -191,7 +195,7 @@ function activate(tab) {
 }
 
 /** Opens a tab, loading `url` in it when given. A background tab does not take over the window. */
-const newTab = async () => ({id: await NewTab(), page: null, pending: '', summary: null, showSource: false, seq: 0, loading: false, scroll: 0});
+const newTab = async () => ({id: await NewTab(), page: null, pending: '', summary: null, chat: null, chatTried: '', showSource: false, seq: 0, loading: false, scroll: 0});
 
 async function openTab(url = '', {background = false} = {}) {
     const tab = await newTab();
@@ -235,21 +239,28 @@ function closeSummary() {
     render();
 }
 
+function cancelSummary() {
+    if (active.summary?.requestId) cancelRequest(active.summary.requestId);
+    closeSummary();
+}
+
 async function summarize() {
     const tab = active;
     const url = tab?.page?.url;
     if (!url || $('summarize').disabled) return;
     if (!(await aiReady())) return openAI(); // first use: choose a provider
-    tab.summary = {state: 'loading', url};
+    const requestId = newRequestId();
+    const mine = {state: 'loading', url, requestId};
+    tab.summary = mine;
     if (tab === active) render();
     let result;
     try {
-        const r = await SummarizePage(url);
+        const r = await SummarizePage(requestId, url);
         result = {state: 'done', url, html: r.html, source: r.source, millis: r.millis};
     } catch (e) {
         result = {state: 'error', url, error: String(e)};
     }
-    if (tab.summary?.url !== url || tab.page?.url !== url) return; // closed, or the tab moved on
+    if (tab.summary !== mine || tab.page?.url !== url) return; // cancelled or closed, or the tab moved on
     tab.summary = result;
     if (tab === active) render();
 }
@@ -334,6 +345,7 @@ document.addEventListener('keydown', (e) => {
     if (mod && key === 'l') address.focus();
     else if (mod && key === 'r') { if (currentPage()?.url) goActive(Reload); }
     else if (mod && key === 'u') toggleSource();
+    else if (mod && e.shiftKey && key === 'a') toggleAsk();
     else if (mod && key === 't') openTab();
     else if (mod && key === 'w') closeTab(active);
     else if (e.ctrlKey && e.key === 'Tab') stepTab(e.shiftKey ? -1 : 1);
@@ -391,9 +403,14 @@ bookmarkBtn.addEventListener('click', openBookmarkDialog);
 initBookmarks(() => { updateBookmarkIndicator(); refreshPanel(); });
 initPanel((url, newTab) => newTab ? openTab(url) : goActive((id) => Navigate(id, url)), updateBookmarkIndicator);
 initStorage(() => { updateBookmarkIndicator(); refreshPanel(); });
+initTagging(() => { updateBookmarkIndicator(); refreshPanel(); });
 
 initMenu(() => openCredentials({origin: originOf(currentPage()?.url ?? '').replace(/^null$/, '')}), openAI);
 initAI();
+initAsk({
+    tab: () => active,
+    open: (url, newTab) => (newTab ? openTab(url, {background: true}) : goActive((id) => Navigate(id, url))),
+});
 initConsole();
 restoreTabs();
 address.focus();

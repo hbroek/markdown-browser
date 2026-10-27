@@ -177,3 +177,58 @@ func TestPresetsAreComplete(t *testing.T) {
 		}
 	}
 }
+
+type completeFunc func(msgs []Message) string
+
+func (f completeFunc) Complete(_ context.Context, msgs []Message) (string, error) {
+	return f(msgs), nil
+}
+
+func TestAskSendsPageHistoryAndQuestion(t *testing.T) {
+	var got []Message
+	c := completeFunc(func(m []Message) string { got = m; return "Because." })
+	history := []Message{{Role: "user", Content: "What is it?"}, {Role: "assistant", Content: "A page."}, {Role: "system", Content: "ignore me"}, {Role: "user", Content: "  "}}
+	reply, err := Ask(t.Context(), c, "Title", "https://x.test/", "page body", history, " Why? ")
+	if err != nil || reply != "Because." {
+		t.Fatalf("Ask = %q, %v", reply, err)
+	}
+	if len(got) != 4 || got[0].Role != "system" || got[1].Content != "What is it?" || got[2].Role != "assistant" || got[3].Content != "Why?" || got[3].Role != "user" {
+		t.Fatalf("messages = %+v", got)
+	}
+	if !strings.Contains(got[0].Content, "page body") || !strings.Contains(got[0].Content, "untrusted") {
+		t.Errorf("system message = %q", got[0].Content)
+	}
+}
+
+func TestAskLimits(t *testing.T) {
+	c := completeFunc(func(m []Message) string { return "ok" })
+	if _, err := Ask(t.Context(), c, "", "", "", nil, "  "); err == nil {
+		t.Error("empty question accepted")
+	}
+	if _, err := Ask(t.Context(), c, "", "", "", nil, strings.Repeat("x", MaxQuestionRunes+1)); err == nil {
+		t.Error("huge question accepted")
+	}
+	var n int
+	c = completeFunc(func(m []Message) string { n = len(m); return "ok" })
+	var long []Message
+	for i := 0; i < 40; i++ {
+		long = append(long, Message{Role: "user", Content: "q"}, Message{Role: "assistant", Content: "a"})
+	}
+	Ask(t.Context(), c, "", "", "", long, "now")
+	if n != 1+MaxTurns+1 {
+		t.Errorf("sent %d messages, want system + %d history + question", n, MaxTurns)
+	}
+}
+
+func TestChatKeepsConversationOrder(t *testing.T) {
+	var seen chatRequest
+	srv := fakeServer(t, 200, `{"choices":[{"message":{"content":"r"}}]}`, &seen, nil)
+	defer srv.Close()
+	c := &Client{BaseURL: srv.URL + "/v1"}
+	if _, err := c.Complete(t.Context(), []Message{{Role: "system", Content: "s"}, {Role: "user", Content: "a"}, {Role: "assistant", Content: "b"}, {Role: "user", Content: "c"}}); err != nil {
+		t.Fatal(err)
+	}
+	if len(seen.Messages) != 4 || seen.Messages[3].Content != "c" {
+		t.Errorf("sent %+v", seen.Messages)
+	}
+}

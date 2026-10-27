@@ -4,6 +4,7 @@
 import {BookmarkFolders, BookmarksIn, SaveBookmark, SaveBookmarkFolder, ImportBookmarks, ExportBookmarks} from '../wailsjs/go/main/App';
 import {openBookmark, openFolder, setFolderHint} from './bookmarks.js';
 import {openStorage} from './storage.js';
+import {openTagging} from './tagging.js';
 
 const $ = (id) => document.getElementById(id);
 const panel = $('bookmarks-panel');
@@ -62,6 +63,10 @@ function folderRow(f, depth) {
         el('span', {textContent: `📁 ${f.name}`}));
     const row = newRow(`f:${f.id}`, f.id, depth, label, pencil(`Edit folder ${f.name}`, edit));
     row.classList.add('folder');
+    row.addEventListener('contextmenu', (e) => { // right click: tag this folder's bookmarks with AI
+        e.preventDefault();
+        openTagging({folderId: f.id});
+    });
     row.setAttribute('aria-expanded', String(isOpen));
     row.setAttribute('aria-label', f.name);
     actions.set(row, {folder: true, open: isOpen, activate: toggleFolder, toggle: toggleFolder, edit, drag: {folder: f}});

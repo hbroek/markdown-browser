@@ -30,6 +30,7 @@ title plus link list when a page is not markdown. Go backend, HTML/CSS/JS fronte
 | Cmd/Ctrl+D | Add or edit the bookmark for this page |
 | Cmd/Ctrl+B | Open the bookmarks panel and move into it (again to close it) |
 | Cmd/Ctrl+J | Show / hide the network console |
+| Cmd/Ctrl+Shift+A | Show / hide the Ask this page panel |
 | Cmd/Ctrl+T, Cmd/Ctrl+W | New tab, close tab |
 | Ctrl+Tab / Ctrl+Shift+Tab, Cmd/Ctrl+Shift+[ / ], Cmd/Ctrl+1–9 | Switch tabs (9 is the last) |
 
@@ -73,8 +74,22 @@ Any server that speaks the OpenAI chat-completions API works. Presets are filled
 compatible endpoint), OpenAI, Google Gemini, Ollama, and Apple's on-device model through `fm serve`
 (`http://127.0.0.1:1976/v1`; run `fm serve` first). Or enter your own address and model.
 
+The speech-bubble button (💬, Cmd/Ctrl+Shift+A) opens **Ask this page**: a conversation about the page in the current tab, in a
+panel on the right. Each tab has its own conversation, about one page. It is saved after every answer and comes back when you open
+that page again, also after a restart (**Clear** deletes it; ☰ → AI assistant → *Delete saved conversations* deletes them all). The text
+of your questions and the answers is kept in `conversations.json` in the config folder, readable only by you, for up to 50 pages. Answers are rendered as markdown, with links that open in the browser, and show the model and how long it took.
+Enter sends and Shift+Enter starts a new line. While a model is working, the **Cancel** button (or Esc) stops it, and so do the Cancel buttons on the summary card and the bookmark suggestion; the question goes back into the box.
+
+**Tag with AI** (a button in the bookmarks panel footer, or right-click a folder to start with just that folder) asks the AI for a short
+title, a description and keywords for many bookmarks at once. You choose the folder and whether to cover only bookmarks that are
+missing a title, description or keywords, or every bookmark (new descriptions and keywords replace the old ones). Existing titles are
+kept unless you tick *Replace existing titles with short AI titles*. The dialog first says how many pages will be read and the most text that could be
+sent. Pages are read two at a time, **Stop** ends the run early, and a rate-limit error from the provider stops it too. Then
+a table shows every suggestion with an editable title, description and keywords: nothing is saved until you untick what you do not want and
+press **Apply**. Pages that could not be read are listed at the end with the reason.
+
 - The API key is kept in the system keychain, never in `settings.json`.
-- A summary or suggestion sends the page's text (cut to about 30,000 characters) to the provider. For a server that is not on this
+- A summary, suggestion or question sends the page's text (cut to about 30,000 characters) to the provider. For a server that is not on this
   computer you must tick *Allow sending page text to …* once; servers on this computer need no permission.
 - Pages are re-fetched for this, with your saved credentials, so pages behind a login work. Model output is shown
   as sanitized markdown, and the prompts tell the model to ignore instructions inside the page.
@@ -116,7 +131,11 @@ make windows   # cross-compile markdown-browser.exe (works from macOS/Linux)
 ```
 
 Linux needs `libgtk-3-dev` and `libwebkit2gtk-4.1-dev` (and a Secret Service such as gnome-keyring for
-credentials); build with `make linux`. A GitHub Actions workflow builds all three platforms.
+credentials); build with `make linux`.
+
+The Linux release is a folder with the program, `install.sh`, a launcher entry and the icon. Run `./install.sh` inside it to put them under
+`~/.local` (program, application-menu entry and icon; delete those three files to uninstall). Without it the program runs but
+Wayland desktops have no launcher to take the taskbar icon from; X11 desktops show the window icon either way. A GitHub Actions workflow builds all three platforms.
 
 ## Releases
 
@@ -151,22 +170,28 @@ For the release workflow, add these repository secrets (Settings > Secrets and v
 
 ## Roadmap
 
-Planned AI features, all through the same provider (see **AI assistant** above), in this order:
+**Editing.** Edit the markdown of the page you are reading and save it back: local files first (the source view becomes an
+editor with a live preview, and saving writes the file). Saving a remote page needs a write protocol the server accepts (HTTP `PUT`
+with the saved credentials, WebDAV, or a Git host's API), so that comes after, one protocol at a time.
 
-1. **Ask this page.** A chat panel beside the page for questions about what you are reading. The page's markdown is the context.
-2. **Bulk tagging.** Run the bookmark suggestion over every bookmark that has no description or keywords, with a size estimate and a confirmation before anything is sent.
-3. **Smart bookmark search.** Type a sentence in the address bar and have the model re-rank bookmark and history matches by meaning.
-4. **Auto-organize.** After an import, or for a messy folder, the model proposes folders and moves, and you approve them.
-5. **Reading tools.** Translate a page, explain or simplify a selection, an outline of long pages, a digest of an RSS feed.
-6. **Compare tabs.** Summarize several open tabs together.
-7. **Save as notes.** Turn the current page into a local markdown summary with a link back.
-8. **Native Claude backend.** The Messages API for Claude-only features such as prompt caching, behind the same provider interface.
+**Social media.** Not defined yet. Ideas to choose from: share a page, a selection or an AI summary as a post (copy as formatted text, or
+post to Mastodon or Bluesky with an app password kept in the keychain), and save links from a feed or a timeline as bookmarks.
+
+**AI features**, all through the same provider (see **AI assistant** above), in this order:
+
+1. **Smart bookmark search.** Type a sentence in the address bar and have the model re-rank bookmark and history matches by meaning.
+2. **Auto-organize.** After an import, or for a messy folder, the model proposes folders and moves, and you approve them.
+3. **Reading tools.** Translate a page, explain or simplify a selection, an outline of long pages, a digest of an RSS feed.
+4. **Compare tabs.** Summarize several open tabs together.
+5. **Save as notes.** Turn the current page into a local markdown summary with a link back.
+6. **Native Claude backend.** The Messages API for Claude-only features such as prompt caching, behind the same provider interface.
 
 ## Layout
 
 ```
 main.go, app.go        Wails bootstrap and the methods exposed to the UI
 internal/fetch         HTTP/file loading, content negotiation, size and redirect limits
+internal/chats         saved Ask this page conversations
 internal/ai            OpenAI-compatible chat client; summary and bookmark-suggestion prompts
 internal/render        markdown -> sanitized HTML, feeds, link extraction
 internal/browser       ties fetch + render + history together

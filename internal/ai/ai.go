@@ -41,9 +41,20 @@ var Presets = []Preset{
 	{ID: "custom", Name: "Other OpenAI-compatible server", BaseURL: "", Model: ""},
 }
 
+// Message is one turn of a conversation. Role is "system", "user" or "assistant".
+type Message struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
 // Chatter sends one prompt and returns the model's reply.
 type Chatter interface {
 	Chat(ctx context.Context, system, user string) (string, error)
+}
+
+// Completer continues a conversation and returns the model's next reply.
+type Completer interface {
+	Complete(ctx context.Context, messages []Message) (string, error)
 }
 
 // Client is a Chatter for one OpenAI-compatible server.
@@ -66,15 +77,10 @@ func (c *Client) http() *http.Client {
 }
 
 type chatRequest struct {
-	Model     string        `json:"model,omitempty"`
-	Messages  []chatMessage `json:"messages"`
-	MaxTokens int           `json:"max_tokens,omitempty"`
-	Stream    bool          `json:"stream"`
-}
-
-type chatMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Model     string    `json:"model,omitempty"`
+	Messages  []Message `json:"messages"`
+	MaxTokens int       `json:"max_tokens,omitempty"`
+	Stream    bool      `json:"stream"`
 }
 
 type chatResponse struct {
@@ -90,6 +96,11 @@ type chatResponse struct {
 
 // Chat sends a system and a user message and returns the reply text.
 func (c *Client) Chat(ctx context.Context, system, user string) (string, error) {
+	return c.Complete(ctx, []Message{{Role: "system", Content: system}, {Role: "user", Content: user}})
+}
+
+// Complete sends the whole conversation and returns the reply text.
+func (c *Client) Complete(ctx context.Context, messages []Message) (string, error) {
 	if strings.TrimSpace(c.BaseURL) == "" {
 		return "", errors.New("no AI provider is set up yet")
 	}
@@ -103,7 +114,7 @@ func (c *Client) Chat(ctx context.Context, system, user string) (string, error) 
 	}
 	body, _ := json.Marshal(chatRequest{
 		Model:     strings.TrimSpace(c.Model),
-		Messages:  []chatMessage{{Role: "system", Content: system}, {Role: "user", Content: user}},
+		Messages:  messages,
 		MaxTokens: max,
 	})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), bytes.NewReader(body))
@@ -251,4 +262,37 @@ func parseSuggestion(reply string) (Suggestion, error) {
 	}
 	s.Keywords = kept
 	return s, nil
+}
+
+// MaxTurns is how many earlier messages of a conversation are sent along.
+const MaxTurns = 12
+
+// MaxQuestionRunes limits one question.
+const MaxQuestionRunes = 4000
+
+// Ask answers a question about a page, continuing the conversation in history
+// (earlier user and assistant messages, oldest first). The page goes into the
+// system message so the history stays only what was said.
+func Ask(ctx context.Context, c Completer, title, pageURL, text string, history []Message, question string) (string, error) {
+	question = strings.TrimSpace(question)
+	if question == "" {
+		return "", errors.New("type a question first")
+	}
+	if utf8.RuneCountInString(question) > MaxQuestionRunes {
+		return "", errors.New("that question is too long")
+	}
+	system := "You answer questions about one web page for a reader in a markdown browser. " +
+		"Answer from the page text below; if the page does not say, say so plainly rather than guessing, and you may add what you know, clearly marked as not from the page. " +
+		"Be concise and reply in Markdown. " + injectionNote + "\n\n" + pageMessage(title, pageURL, text)
+	msgs := []Message{{Role: "system", Content: system}}
+	if len(history) > MaxTurns {
+		history = history[len(history)-MaxTurns:]
+	}
+	for _, m := range history {
+		if (m.Role == "user" || m.Role == "assistant") && strings.TrimSpace(m.Content) != "" {
+			msgs = append(msgs, m)
+		}
+	}
+	msgs = append(msgs, Message{Role: "user", Content: question})
+	return c.Complete(ctx, msgs)
 }

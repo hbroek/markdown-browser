@@ -6,6 +6,10 @@ export function AISettings() {
   return window['go']['main']['App']['AISettings']();
 }
 
+export function AskPage(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['AskPage'](arg1, arg2, arg3, arg4);
+}
+
 export function Back(arg1) {
   return window['go']['main']['App']['Back'](arg1);
 }
@@ -24,6 +28,14 @@ export function BookmarkSettings() {
 
 export function BookmarksIn(arg1) {
   return window['go']['main']['App']['BookmarksIn'](arg1);
+}
+
+export function BookmarksUnder(arg1) {
+  return window['go']['main']['App']['BookmarksUnder'](arg1);
+}
+
+export function CancelAI(arg1) {
+  return window['go']['main']['App']['CancelAI'](arg1);
 }
 
 export function ClearCookies() {
@@ -60,6 +72,10 @@ export function DeleteCredential(arg1) {
 
 export function ExportBookmarks(arg1) {
   return window['go']['main']['App']['ExportBookmarks'](arg1);
+}
+
+export function ForgetConversations() {
+  return window['go']['main']['App']['ForgetConversations']();
 }
 
 export function Forward(arg1) {
@@ -114,20 +130,28 @@ export function SaveBookmarkFolder(arg1) {
   return window['go']['main']['App']['SaveBookmarkFolder'](arg1);
 }
 
+export function SaveConversation(arg1, arg2) {
+  return window['go']['main']['App']['SaveConversation'](arg1, arg2);
+}
+
 export function SaveCredential(arg1) {
   return window['go']['main']['App']['SaveCredential'](arg1);
+}
+
+export function SavedConversation(arg1) {
+  return window['go']['main']['App']['SavedConversation'](arg1);
 }
 
 export function SearchBookmarks(arg1) {
   return window['go']['main']['App']['SearchBookmarks'](arg1);
 }
 
-export function SuggestBookmark(arg1) {
-  return window['go']['main']['App']['SuggestBookmark'](arg1);
+export function SuggestBookmark(arg1, arg2) {
+  return window['go']['main']['App']['SuggestBookmark'](arg1, arg2);
 }
 
-export function SummarizePage(arg1) {
-  return window['go']['main']['App']['SummarizePage'](arg1);
+export function SummarizePage(arg1, arg2) {
+  return window['go']['main']['App']['SummarizePage'](arg1, arg2);
 }
 
 export function TestAI(arg1, arg2) {

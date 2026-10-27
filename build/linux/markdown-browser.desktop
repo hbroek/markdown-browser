@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Markdown Browser
+Comment=A browser for pages served as markdown
+Exec=markdown-browser
+Icon=markdown-browser
+Terminal=false
+Categories=Network;WebBrowser;
+StartupWMClass=markdown-browser

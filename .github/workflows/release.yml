@@ -87,7 +87,10 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           mkdir dist
-          tar -czf "dist/markdown-browser-${{ github.ref_name }}-${{ matrix.name }}.tar.gz" -C build/bin markdown-browser
+          pkg="markdown-browser-${{ github.ref_name }}-${{ matrix.name }}"
+          mkdir -p "stage/$pkg"
+          cp build/bin/markdown-browser build/linux/install.sh build/linux/markdown-browser.desktop build/linux/markdown-browser.png "stage/$pkg/"
+          tar -czf "dist/$pkg.tar.gz" -C stage "$pkg"
 
       - uses: actions/upload-artifact@v4
         with:

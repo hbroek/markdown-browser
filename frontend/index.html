@@ -27,6 +27,7 @@
     </div>
     <button id="console-toggle" title="Show console (Ctrl/Cmd+J)" aria-pressed="false">&gt;_</button>
     <button id="summarize" title="Summarize this page with AI" aria-label="Summarize this page" disabled>&#10024;</button>
+    <button id="ask-toggle" title="Ask this page (Ctrl/Cmd+Shift+A)" aria-label="Ask this page" aria-pressed="false">&#128172;</button>
     <button id="source" title="Show source" disabled>&lt;/&gt;</button>
     <div class="menu-wrap">
         <button id="menu" title="Menu" aria-haspopup="true" aria-expanded="false" aria-label="Menu">&#9776;</button>
@@ -46,11 +47,25 @@
         <div class="panel-foot">
             <button type="button" id="bookmarks-import" title="Add bookmarks from an HTML export or a markdown list">Import&hellip;</button>
             <button type="button" id="bookmarks-export" title="Save all bookmarks as a browser-compatible HTML file">Export HTML&hellip;</button>
+            <button type="button" id="bookmarks-tag" title="Let the AI suggest titles, descriptions and keywords for bookmarks, which you review before anything is saved">Tag with AI&hellip;</button>
             <button type="button" id="bookmarks-export-md" title="Save all bookmarks as a markdown list">Export Markdown&hellip;</button>
             <span id="bookmarks-msg" role="status"></span>
         </div>
     </aside>
     <main id="content"></main>
+    <aside id="ask-panel" aria-label="Ask this page" hidden>
+        <div class="panel-head">
+            <strong>&#10024; Ask this page</strong>
+            <span class="spacer"></span>
+            <button type="button" id="ask-clear" title="Delete this conversation">Clear</button>
+            <button type="button" id="ask-close" title="Hide (Ctrl/Cmd+Shift+A)">&times;</button>
+        </div>
+        <div id="ask-log" role="log" aria-live="polite"></div>
+        <form id="ask-form">
+            <textarea id="ask-input" rows="2" placeholder="Ask about this page&hellip;" aria-label="Your question"></textarea>
+            <button type="submit" id="ask-send" class="primary">Ask</button>
+        </form>
+    </aside>
 </div>
 <footer id="console" hidden>
     <div id="console-panel" hidden>
@@ -173,6 +188,32 @@
         </div>
     </form>
 </dialog>
+<dialog id="tag-dialog" class="wide" aria-labelledby="tag-title">
+    <h2 id="tag-title">Tag bookmarks with AI</h2>
+    <div id="tag-setup" class="stack">
+        <label>Folder <select id="tag-folder"></select></label>
+        <label class="radio"><input type="radio" name="tag-scope" value="missing" checked> Only bookmarks missing a title, description or keywords</label>
+        <label class="radio"><input type="radio" name="tag-scope" value="all"> Every bookmark (new descriptions and keywords replace the old ones)</label>
+        <label class="radio"><input type="checkbox" id="tag-titles"> Replace existing titles with short AI titles</label>
+        <p id="tag-summary" class="note"></p>
+        <p class="note">The AI reads each page, so every page is fetched and its text sent to your provider. Nothing is saved until you have reviewed the suggestions.</p>
+    </div>
+    <div id="tag-run" class="stack" hidden>
+        <progress id="tag-progress" max="1" value="0"></progress>
+        <p id="tag-current" class="note busy"></p>
+    </div>
+    <div id="tag-review" class="stack" hidden>
+        <p id="tag-review-note" class="note"></p>
+        <div id="tag-table-wrap"><table id="tag-table"></table></div>
+    </div>
+    <p id="tag-status" role="status"></p>
+    <div class="dialog-actions">
+        <span id="tag-count" class="note"></span>
+        <span class="spacer"></span>
+        <button type="button" id="tag-cancel">Cancel</button>
+        <button type="button" id="tag-go" class="primary">Start</button>
+    </div>
+</dialog>
 <dialog id="ai-dialog" aria-labelledby="ai-title">
     <h2 id="ai-title">AI assistant</h2>
     <form id="ai-form" autocomplete="off">
@@ -187,6 +228,7 @@
         <p id="ai-status" role="status"></p>
         <div class="dialog-actions">
             <button type="button" id="ai-test">Test</button>
+            <button type="button" id="ai-forget" title="Delete every saved Ask this page conversation">Delete saved conversations</button>
             <span class="spacer"></span>
             <button type="button" id="ai-cancel">Cancel</button>
             <button type="submit" class="primary">Save</button>

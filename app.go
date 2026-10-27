@@ -16,6 +16,7 @@ import (
 	"markdown-browser/internal/bookmarks/linkagogo"
 	_ "markdown-browser/internal/bookmarks/sqlite"
 	"markdown-browser/internal/browser"
+	"markdown-browser/internal/chats"
 	"markdown-browser/internal/cookies"
 	"markdown-browser/internal/fetch"
 	"markdown-browser/internal/history"
@@ -39,6 +40,13 @@ type App struct {
 	settings     settings.Settings
 	settingsPath string
 	lggURL       string // LinkaGoGo API address; empty is the real one (tests set it)
+
+	pageMu    sync.Mutex
+	pageCache map[string]pageCacheEntry // page text for AI features, see pageText
+	chats     *chats.Store              // saved Ask this page conversations
+
+	aiMu      sync.Mutex
+	aiCancels map[string]context.CancelFunc // running AI requests, by the id the page chose
 }
 
 func NewApp() *App {
@@ -66,6 +74,7 @@ func NewApp() *App {
 	a.settings = settings.Load(a.settingsPath, dir)
 	a.bookmarks, a.bookmarksErr = bookmarks.Open(a.settings.Bookmarks.Backend, a.settings.Bookmarks.Config, bookmarks.Deps{Authorize: a.auth.Apply})
 	a.browser.SetSearcher(a.searchPage)
+	a.chats = chats.Open(file("conversations.json"))
 	return a
 }
 
@@ -454,4 +463,61 @@ func (a *App) switchBookmarks(backend string, cfg bookmarks.Config) error {
 		old.Close()
 	}
 	return nil
+}
+
+// BookmarkItem is a bookmark with the folders above it, for lists that span folders.
+type BookmarkItem struct {
+	Bookmark bookmarks.Bookmark `json:"bookmark"`
+	Path     string             `json:"path"` // "Reading / Rust"; empty at the top level
+}
+
+// BookmarksUnder lists every bookmark in a folder and its subfolders ("" is all of them).
+func (a *App) BookmarksUnder(folderID string) ([]BookmarkItem, error) {
+	s, err := a.store()
+	if err != nil {
+		return nil, err
+	}
+	ctx := a.bookmarkCtx()
+	folders, err := s.Folders(ctx)
+	if err != nil {
+		return nil, err
+	}
+	children := map[string][]bookmarks.Folder{}
+	for _, f := range folders {
+		children[f.ParentID] = append(children[f.ParentID], f)
+	}
+	bookmarks.SortFolders(children[folderID])
+	var out []BookmarkItem
+	var walk func(id, path string) error
+	walk = func(id, path string) error {
+		list, err := s.Bookmarks(ctx, id)
+		if err != nil {
+			return err
+		}
+		for _, b := range list {
+			out = append(out, BookmarkItem{Bookmark: b, Path: path})
+		}
+		kids := children[id]
+		bookmarks.SortFolders(kids)
+		for _, f := range kids {
+			sub := f.Name
+			if path != "" {
+				sub = path + " / " + f.Name
+			}
+			if err := walk(f.ID, sub); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	start := ""
+	for _, f := range folders {
+		if f.ID == folderID {
+			start = f.Name
+		}
+	}
+	if folderID != "" && start == "" {
+		return nil, fmt.Errorf("%w: folder %s", bookmarks.ErrNotFound, folderID)
+	}
+	return out, walk(folderID, start)
 }

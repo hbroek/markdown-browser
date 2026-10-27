@@ -1,6 +1,6 @@
 // The bookmark and folder dialogs: add, edit and delete.
 import {BookmarkFolders, SaveBookmark, DeleteBookmark, SaveBookmarkFolder, DeleteBookmarkFolder, SuggestBookmark} from '../wailsjs/go/main/App';
-import {aiReady, openAI} from './ai.js';
+import {aiReady, openAI, newRequestId, cancelRequest} from './ai.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -184,13 +184,25 @@ export function initBookmarks(changed) {
         }
     });
 
-    $('bookmark-suggest').addEventListener('click', async () => {
-        const btn = $('bookmark-suggest');
+    // One click asks the AI; while it works the same button cancels.
+    let suggesting = null;
+    const suggestBtn = $('bookmark-suggest');
+    const suggestLabel = suggestBtn.textContent;
+    suggestBtn.addEventListener('click', async () => {
+        if (suggesting) {
+            cancelRequest(suggesting);
+            suggesting = null;
+            suggestBtn.textContent = suggestLabel;
+            say(bookmarkStatus, '');
+            return;
+        }
         if (!(await aiReady())) return openAI();
-        btn.disabled = true;
+        const id = suggesting = newRequestId();
+        suggestBtn.textContent = 'Cancel';
         say(bookmarkStatus, 'Reading the page and asking the model\u2026', false, true);
         try {
-            const s = await SuggestBookmark($('bookmark-url').value);
+            const s = await SuggestBookmark(id, $('bookmark-url').value);
+            if (suggesting !== id) return; // cancelled
             const filled = [];
             const title = $('bookmark-name');
             if (s.title && (!title.value.trim() || title.value.trim() === $('bookmark-url').value.trim())) { title.value = s.title; filled.push('title'); }
@@ -201,9 +213,12 @@ export function initBookmarks(changed) {
             if (added.length) { $('bookmark-keywords').value = [...have, ...added].join(', '); filled.push('keywords'); }
             say(bookmarkStatus, filled.length ? `Suggested ${filled.join(', ')} \u2013 edit as you like, then save.` : 'Nothing to add: those fields are already filled in.');
         } catch (err) {
-            say(bookmarkStatus, String(err), true);
+            if (suggesting === id) say(bookmarkStatus, String(err), true);
         } finally {
-            btn.disabled = false;
+            if (suggesting === id) {
+                suggesting = null;
+                suggestBtn.textContent = suggestLabel;
+            }
         }
     });
 
