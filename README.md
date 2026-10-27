@@ -45,6 +45,7 @@ title plus link list when a page is not markdown. Go backend, HTML/CSS/JS fronte
   starting with `?` (`?go.dev`; a bare `?` lists everything). Every word must match the title, address,
   description or a keyword. Pages from your browsing history that match (title or address) are merged in
   after the bookmarks, without repeating a bookmarked page. Anything with a dot, colon or slash, like `example.com`, is an address instead.
+- **Search by meaning** starts with `@` (`@that article about async rust I read last month`) and needs the AI assistant (see below).
 - **Import / Export** (bottom of the panel) read and write browser-compatible HTML bookmark files (Chrome, Firefox,
   Safari and others) and markdown lists. Importing merges folders by name and skips a page that is already in the same folder (the same page in another folder is imported).
   Markdown exports look like this, and hand-written files in the same shape import too (headings also work as
@@ -87,6 +88,13 @@ kept unless you tick *Replace existing titles with short AI titles*. The dialog 
 sent. Pages are read two at a time, **Stop** ends the run early, and a rate-limit error from the provider stops it too. Then
 a table shows every suggestion with an editable title, description and keywords: nothing is saved until you untick what you do not want and
 press **Apply**. Pages that could not be read are listed at the end with the reason.
+
+**Search by meaning** is typed in the address bar with a leading `@`: `@that article about async rust I read last month`. Plain
+searches (`rust async`, `?rust`) still need every word to match and never use the AI. The `@` search offers the model your bookmarks and recent
+browsing history (up to 400 entries, the most recent ones, and those sharing words with your query first when you have more) and shows the ones it picks, best first, each with the
+model's reason. Unlike the other features it sends not the text of a page but the **title, address, folder, keywords and description of each
+bookmark and history entry**, so it needs the same permission for servers outside your computer. The results page says what was sent and where. A
+keyword results page has a button to rerun the search by meaning, and the other way round. Searches by meaning are not recorded in history.
 
 - The API key is kept in the system keychain, never in `settings.json`.
 - A summary, suggestion or question sends the page's text (cut to about 30,000 characters) to the provider. For a server that is not on this
@@ -179,12 +187,11 @@ post to Mastodon or Bluesky with an app password kept in the keychain), and save
 
 **AI features**, all through the same provider (see **AI assistant** above), in this order:
 
-1. **Smart bookmark search.** Type a sentence in the address bar and have the model re-rank bookmark and history matches by meaning.
-2. **Auto-organize.** After an import, or for a messy folder, the model proposes folders and moves, and you approve them.
-3. **Reading tools.** Translate a page, explain or simplify a selection, an outline of long pages, a digest of an RSS feed.
-4. **Compare tabs.** Summarize several open tabs together.
-5. **Save as notes.** Turn the current page into a local markdown summary with a link back.
-6. **Native Claude backend.** The Messages API for Claude-only features such as prompt caching, behind the same provider interface.
+1. **Auto-organize.** After an import, or for a messy folder, the model proposes folders and moves, and you approve them.
+2. **Reading tools.** Translate a page, explain or simplify a selection, an outline of long pages, a digest of an RSS feed.
+3. **Compare tabs.** Summarize several open tabs together.
+4. **Save as notes.** Turn the current page into a local markdown summary with a link back.
+5. **Native Claude backend.** The Messages API for Claude-only features such as prompt caching, behind the same provider interface.
 
 ## Layout
 

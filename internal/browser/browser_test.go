@@ -250,3 +250,26 @@ func TestTabsHaveSeparateHistory(t *testing.T) {
 		t.Error("visits from tabs were not recorded in the shared history")
 	}
 }
+
+func TestMeaningSearchPage(t *testing.T) {
+	b := New(history.Open(""), fetch.NewFetcher(nil, nil))
+	var asked []string
+	b.SetMeaningSearcher(func(_ context.Context, q string) (string, error) {
+		asked = append(asked, q)
+		return "# Best matches\n\n- one\n", nil
+	})
+	p := b.Navigate(context.Background(), 1, "@ that  async article")
+	if p.URL != "bookmarks:meaning?q=that+async+article" || p.Kind != page.KindMarkdown || len(asked) != 1 || asked[0] != "that async article" {
+		t.Fatalf("page = %+v, asked %v", p, asked)
+	}
+	if got := b.Reload(context.Background(), 1); got.Kind != page.KindMarkdown || len(asked) != 2 {
+		t.Errorf("reload = %+v", got)
+	}
+	if len(b.History()) != 0 {
+		t.Errorf("a search by meaning was recorded as a visit: %+v", b.History())
+	}
+	empty := New(history.Open(""), fetch.NewFetcher(nil, nil))
+	if p := empty.Navigate(context.Background(), 1, "@ x"); p.Kind != page.KindError {
+		t.Errorf("without a searcher: %+v", p)
+	}
+}

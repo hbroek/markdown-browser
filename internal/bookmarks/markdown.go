@@ -102,3 +102,44 @@ func count(n int, noun string) string {
 	}
 	return fmt.Sprintf("%d %ss", n, noun)
 }
+
+// Match is a page picked in a search by meaning.
+type Match struct {
+	Title    string
+	URL      string
+	Where    string // the folder path, or "History · date"
+	Keywords []string
+	Why      string // the model's reason
+}
+
+// MeaningMarkdown formats the pages a model picked for a description, best first.
+// note says how the search was done (what was searched and by which model).
+func MeaningMarkdown(query string, matches []Match, note string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "# Best matches for \u201c%s\u201d\n\n", mdSpecial.Replace(query))
+	if len(matches) == 0 {
+		b.WriteString("Nothing in your bookmarks or history seems to fit that description.\n")
+	}
+	for _, m := range matches {
+		title := strings.Join(strings.Fields(m.Title), " ")
+		if title == "" {
+			title = m.URL
+		}
+		fmt.Fprintf(&b, "- [%s](<%s>)  \n  _%s_", mdSpecial.Replace(title), linkSafe.Replace(m.URL), mdSpecial.Replace(m.Where))
+		if len(m.Keywords) > 0 {
+			escaped := make([]string, len(m.Keywords))
+			for i, k := range m.Keywords {
+				escaped[i] = mdSpecial.Replace(k)
+			}
+			fmt.Fprintf(&b, " \u00B7 %s", strings.Join(escaped, ", "))
+		}
+		if w := strings.Join(strings.Fields(m.Why), " "); w != "" {
+			fmt.Fprintf(&b, "  \n  %s", mdSpecial.Replace(w))
+		}
+		b.WriteString("\n")
+	}
+	if note != "" {
+		fmt.Fprintf(&b, "\n---\n\n_%s_\n", mdSpecial.Replace(note))
+	}
+	return b.String()
+}

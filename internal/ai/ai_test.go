@@ -3,6 +3,7 @@ package ai
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -230,5 +231,63 @@ func TestChatKeepsConversationOrder(t *testing.T) {
 	}
 	if len(seen.Messages) != 4 || seen.Messages[3].Content != "c" {
 		t.Errorf("sent %+v", seen.Messages)
+	}
+}
+
+func TestRankOffersNumberedLinesAndMapsAnswersBack(t *testing.T) {
+	var user, system string
+	c := chatFunc(func(s, u string) string {
+		system, user = s, u
+		return "Here:\n[{\"n\": 2, \"why\": \"about futures\"}, {\"n\": \"1\", \"why\": \"also\"}, {\"n\": 2, \"why\": \"again\"}, {\"n\": 9, \"why\": \"not offered\"}, {\"n\": 0}]"
+	})
+	items := []Item{
+		{Title: "Cooking | tips\nline", URL: "https://a.test/", Where: "Bookmarks"},
+		{Title: "Async Rust", URL: "https://b.test/", Where: "Bookmarks / Rust", Keywords: "rust, async", Description: "Futures"},
+	}
+	hits, err := Rank(t.Context(), c, "  that article about futures ", items)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 2 || hits[0].Index != 1 || hits[0].Why != "about futures" || hits[1].Index != 0 {
+		t.Errorf("hits = %+v", hits)
+	}
+	if !strings.Contains(user, "1 | Cooking / tips line | https://a.test/") || !strings.Contains(user, "2 | Async Rust") || !strings.Contains(user, "that article about futures") {
+		t.Errorf("user message = %q", user)
+	}
+	if !strings.Contains(system, "untrusted") {
+		t.Error("no injection warning")
+	}
+}
+
+func TestRankEdgeCases(t *testing.T) {
+	c := chatFunc(func(s, u string) string { return "[]" })
+	if hits, err := Rank(t.Context(), c, "x", []Item{{Title: "a"}}); err != nil || len(hits) != 0 {
+		t.Errorf("empty answer: %v, %v", hits, err)
+	}
+	if _, err := Rank(t.Context(), c, "  ", []Item{{Title: "a"}}); err == nil {
+		t.Error("empty query accepted")
+	}
+	if hits, err := Rank(t.Context(), c, "x", nil); err != nil || hits != nil {
+		t.Errorf("no items: %v, %v", hits, err)
+	}
+	bad := chatFunc(func(s, u string) string { return "I could not find anything." })
+	if _, err := Rank(t.Context(), bad, "x", []Item{{Title: "a"}}); err == nil {
+		t.Error("an answer without a list was accepted")
+	}
+}
+
+func TestPrefilterKeepsMatchesThenRecent(t *testing.T) {
+	var items []Item
+	for i := 0; i < 10; i++ {
+		items = append(items, Item{Title: fmt.Sprintf("page %d", i)})
+	}
+	items[7].Title = "Async Rust guide"
+	items[9].Keywords = "rust"
+	got := Prefilter("rust async futures", items, 4)
+	if len(got) != 4 || got[0].Title != "Async Rust guide" || got[1].Keywords != "rust" || got[2].Title != "page 0" || got[3].Title != "page 1" {
+		t.Errorf("Prefilter = %+v", got)
+	}
+	if all := Prefilter("x", items[:3], 5); len(all) != 3 {
+		t.Errorf("a short list was cut: %d", len(all))
 	}
 }

@@ -16,7 +16,9 @@ import (
 	"markdown-browser/internal/ai"
 	"markdown-browser/internal/auth"
 	"markdown-browser/internal/bookmarks"
+	"markdown-browser/internal/browser"
 	"markdown-browser/internal/fetch"
+	"markdown-browser/internal/history"
 	"markdown-browser/internal/settings"
 )
 
@@ -450,5 +452,45 @@ func TestAIReadsAFeedAsText(t *testing.T) {
 	}
 	if !strings.Contains(text, "First post") || !strings.Contains(text, "Hello world") || strings.Contains(text, "<") || strings.Contains(text, "rss") {
 		t.Errorf("text = %q; want the entries as plain text, no XML", text)
+	}
+}
+
+func TestMeaningSearchRanksBookmarksAndHistory(t *testing.T) {
+	a := testApp(t, &miniLinkaGoGo{})
+	a.browser = browser.New(history.Open(""), fetch.NewFetcher(a.auth, nil))
+	s, _ := a.store()
+	ctx := context.Background()
+	rust, _ := s.SaveFolder(ctx, bookmarks.Folder{Name: "Rust"})
+	s.SaveBookmark(ctx, bookmarks.Bookmark{Title: "Cooking", URL: "https://food.test/", Keywords: []string{"recipes"}})
+	s.SaveBookmark(ctx, bookmarks.Bookmark{Title: "Async Rust", URL: "https://rust.test/async", FolderID: rust.ID, Keywords: []string{"rust", "async"}, Description: "About futures"})
+
+	var sent string
+	// Item 1 is the most recently saved bookmark (Async Rust); the answer also mentions numbers that were never offered.
+	llm := aiServer(t, `[{"n": 1, "why": "it explains futures"}, {"n": 77, "why": "not offered"}]`, &sent, nil)
+	if err := a.SaveAI(AIInput{Preset: "custom", BaseURL: llm.URL + "/v1", Model: "m"}, ""); err != nil {
+		t.Fatal(err)
+	}
+	md, err := a.meaningPage(ctx, "that article about futures")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(md, "[Async Rust](<https://rust.test/async>)") || !strings.Contains(md, "Bookmarks / Rust") || !strings.Contains(md, "it explains futures") {
+		t.Errorf("results = %s", md)
+	}
+	if strings.Contains(md, "Cooking") || strings.Contains(md, "not offered") {
+		t.Errorf("results include something the model did not pick: %s", md)
+	}
+	if !strings.Contains(sent, "Cooking") || !strings.Contains(sent, "that article about futures") || !strings.Contains(md, "were sent to 127.0.0.1") {
+		t.Errorf("model was sent %s", sent)
+	}
+	if _, err := a.meaningPage(ctx, "  "); err == nil {
+		t.Error("empty description accepted")
+	}
+}
+
+func TestMeaningSearchNeedsAProvider(t *testing.T) {
+	a := testApp(t, &miniLinkaGoGo{})
+	if _, err := a.meaningPage(context.Background(), "anything"); err == nil || !strings.Contains(err.Error(), "AI") {
+		t.Errorf("err = %v", err)
 	}
 }

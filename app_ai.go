@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
 	"markdown-browser/internal/ai"
 	"markdown-browser/internal/auth"
+	"markdown-browser/internal/bookmarks"
 	"markdown-browser/internal/chats"
 	"markdown-browser/internal/fetch"
 	"markdown-browser/internal/render"
@@ -384,4 +386,79 @@ func (a *App) ForgetConversations() int {
 	n := a.conversations().Len()
 	a.conversations().Clear()
 	return n
+}
+
+// maxHistoryOffered is how many recent history pages join the bookmarks in a search by meaning.
+const maxHistoryOffered = 100
+
+// meaningPage answers "@ description" in the address bar: it offers the model the saved bookmarks
+// and recent history (titles, addresses, folders, keywords and descriptions, not the pages
+// themselves) and shows the ones it picks, best first.
+func (a *App) meaningPage(ctx context.Context, query string) (string, error) {
+	c, err := a.aiClient()
+	if err != nil {
+		return "", err
+	}
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return "", errors.New("describe what you are looking for after the @")
+	}
+	saved, err := a.BookmarksUnder("")
+	if err != nil {
+		return "", err
+	}
+	sort.SliceStable(saved, func(i, j int) bool { return saved[i].Bookmark.Updated.After(saved[j].Bookmark.Updated) })
+
+	var items []ai.Item
+	var found []bookmarks.Match
+	known := map[string]bool{}
+	for _, it := range saved {
+		b := it.Bookmark
+		where := "Bookmarks"
+		if it.Path != "" {
+			where += " / " + it.Path
+		}
+		known[bookmarks.Key(b.URL)] = true
+		items = append(items, ai.Item{Ref: len(found), Title: b.Title, URL: b.URL, Where: where, Keywords: strings.Join(b.Keywords, ", "), Description: b.Description})
+		found = append(found, bookmarks.Match{Title: b.Title, URL: b.URL, Where: where, Keywords: b.Keywords})
+	}
+	bookmarkCount, historyCount := len(items), 0
+	for _, e := range a.browser.History() {
+		if historyCount == maxHistoryOffered {
+			break
+		}
+		if known[bookmarks.Key(e.URL)] || strings.HasPrefix(e.URL, "bookmarks:") {
+			continue
+		}
+		known[bookmarks.Key(e.URL)] = true
+		where := "History \u00B7 " + e.Time.Local().Format("2 Jan 2006 15:04")
+		items = append(items, ai.Item{Ref: len(found), Title: e.Title, URL: e.URL, Where: "History"})
+		found = append(found, bookmarks.Match{Title: e.Title, URL: e.URL, Where: where})
+		historyCount++
+	}
+	if len(items) == 0 {
+		return bookmarks.MeaningMarkdown(query, nil, "You have no bookmarks or history to search yet."), nil
+	}
+
+	offered := ai.Prefilter(query, items, ai.MaxSearchItems)
+	started := time.Now()
+	hits, err := ai.Rank(ctx, c, query, offered)
+	if err != nil {
+		return "", err
+	}
+	took := time.Since(started)
+	matches := make([]bookmarks.Match, 0, len(hits))
+	for _, h := range hits {
+		m := found[offered[h.Index].Ref]
+		m.Why = h.Why
+		matches = append(matches, m)
+	}
+
+	host := "your AI provider"
+	if u, err := url.Parse(a.AISettings().BaseURL); err == nil && u.Host != "" {
+		host = u.Host
+	}
+	note := fmt.Sprintf("Picked by %s in %.1fs from %d of your %d bookmarks and recent history pages. Their titles, addresses, folders, keywords and descriptions were sent to %s.",
+		a.aiSource(), took.Seconds(), len(offered), bookmarkCount+historyCount, host)
+	return bookmarks.MeaningMarkdown(query, matches, note), nil
 }

@@ -39,16 +39,38 @@ function render() {
             : p.kind === 'markdown' ? (showSource ? view.source(p) : view.markdown(p))
             : p.kind === 'fallback' ? view.fallback(p, (origin) => openCredentials({origin}))
             : view.error(p, () => goActive((id) => Navigate(id, p.url)), (page) => openCredentials({origin: page.origin, kind: page.authScheme === 'basic' ? 'basic' : page.authScheme === 'bearer' ? 'bearer' : 'cookie'})));
-    content.replaceChildren(...(active?.summary ? [view.summary(active.summary, closeSummary, cancelSummary), body] : [body]));
+    const extras = [searchSwitch(p), active?.summary ? view.summary(active.summary, closeSummary, cancelSummary) : null].filter(Boolean);
+    content.replaceChildren(...extras, body);
     content.scrollTop = 0;
 }
 
 // Bookmark searches live at "bookmarks:search?q=..."; show them as typed: "?query".
+// Searches by meaning ("@ ...") live at "bookmarks:meaning?q=..." and are shown as "@query".
 const SEARCH_PREFIX = 'bookmarks:search?q=';
-const isSearch = (url) => url.startsWith(SEARCH_PREFIX);
+const MEANING_PREFIX = 'bookmarks:meaning?q=';
+const isSearch = (url) => url.startsWith(SEARCH_PREFIX) || url.startsWith(MEANING_PREFIX);
+function searchQueryOf(url) {
+    const prefix = url.startsWith(MEANING_PREFIX) ? MEANING_PREFIX : SEARCH_PREFIX;
+    try { return decodeURIComponent(url.slice(prefix.length).replace(/\+/g, ' ')); } catch { return ''; }
+}
 function displayAddress(url) {
     if (!isSearch(url)) return url;
-    try { return '?' + decodeURIComponent(url.slice(SEARCH_PREFIX.length).replace(/\+/g, ' ')); } catch { return url; }
+    return (url.startsWith(MEANING_PREFIX) ? '@' : '?') + searchQueryOf(url);
+}
+
+/** On a search results page: a button to run the same search the other way. */
+function searchSwitch(p) {
+    if (!p?.url || !isSearch(p.url) || p.kind === 'error') return null;
+    const query = searchQueryOf(p.url);
+    const byMeaning = p.url.startsWith(MEANING_PREFIX);
+    if (!byMeaning && !query.trim()) return null;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'search-switch';
+    button.textContent = byMeaning ? 'Search by keywords instead' : '\u2728 Search by meaning with AI';
+    button.title = byMeaning ? 'Every word must match' : 'Sends the titles, addresses, keywords and descriptions of your bookmarks and history to your AI provider';
+    button.addEventListener('click', () => goActive((id) => Navigate(id, (byMeaning ? '?' : '@') + query)));
+    return button;
 }
 
 /** Puts the active tab's page on screen: address bar, buttons, content. */

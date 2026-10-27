@@ -27,7 +27,15 @@ const searchPrefix = "bookmarks:search?q="
 // SearchURL is the address of the results page for query.
 func SearchURL(query string) string { return searchPrefix + url.QueryEscape(query) }
 
-func isSearchURL(u string) bool { return strings.HasPrefix(u, searchPrefix) }
+// meaningPrefix starts the pseudo-URL of a search by meaning ("@ ..." in the address bar).
+const meaningPrefix = "bookmarks:meaning?q="
+
+// MeaningURL is the address of the results page of a search by meaning.
+func MeaningURL(query string) string { return meaningPrefix + url.QueryEscape(query) }
+
+func isSearchURL(u string) bool {
+	return strings.HasPrefix(u, searchPrefix) || strings.HasPrefix(u, meaningPrefix)
+}
 
 // tab is one page with its own back/forward history. Its lock is held while a
 // page loads, so a slow site only holds up its own tab.
@@ -39,6 +47,7 @@ type tab struct {
 type Browser struct {
 	fetcher *fetch.Fetcher
 	search  Searcher
+	meaning Searcher // searches by meaning, with an AI model
 	history *history.Log
 
 	tabMu   sync.Mutex
@@ -81,6 +90,9 @@ func (b *Browser) tab(id int) *tab {
 // SetSearcher enables bookmark searches typed into the address bar.
 func (b *Browser) SetSearcher(s Searcher) { b.search = s }
 
+// SetMeaningSearcher enables searches by meaning, typed as "@ ..." in the address bar.
+func (b *Browser) SetMeaningSearcher(s Searcher) { b.meaning = s }
+
 // History returns the visit log, most recent first.
 func (b *Browser) History() []history.Entry { return b.history.Entries() }
 
@@ -111,7 +123,9 @@ func (b *Browser) Navigate(ctx context.Context, tabID int, rawURL string) page.P
 	t := b.tab(tabID)
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if q, ok := fetch.SearchQuery(rawURL); ok {
+	if q, ok := fetch.MeaningQuery(rawURL); ok {
+		rawURL = MeaningURL(q)
+	} else if q, ok := fetch.SearchQuery(rawURL); ok {
 		rawURL = SearchURL(q)
 	}
 	p := b.load(ctx, rawURL)
@@ -223,16 +237,20 @@ func (b *Browser) load(ctx context.Context, rawURL string) page.Page {
 	return p
 }
 
-// loadSearch builds the bookmark search results page.
+// loadSearch builds the bookmark search results page, by keywords or by meaning.
 func (b *Browser) loadSearch(ctx context.Context, rawURL string) page.Page {
 	p := page.Page{URL: rawURL}
-	query, err := url.QueryUnescape(strings.TrimPrefix(rawURL, searchPrefix))
-	if err == nil && b.search == nil {
+	search, prefix := b.search, searchPrefix
+	if strings.HasPrefix(rawURL, meaningPrefix) {
+		search, prefix = b.meaning, meaningPrefix
+	}
+	query, err := url.QueryUnescape(strings.TrimPrefix(rawURL, prefix))
+	if err == nil && search == nil {
 		err = fmt.Errorf("bookmarks are not available")
 	}
 	var md string
 	if err == nil {
-		md, err = b.search(ctx, query)
+		md, err = search(ctx, query)
 	}
 	if err != nil {
 		p.Kind, p.Error = page.KindError, err.Error()

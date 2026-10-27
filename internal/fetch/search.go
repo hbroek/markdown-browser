@@ -32,3 +32,14 @@ func SearchQuery(input string) (string, bool) {
 	}
 	return s, true
 }
+
+// MeaningQuery decides whether address bar input asks for a search by meaning:
+// it starts with "@", as in "@that article about async rust". It returns what
+// follows, which may be empty.
+func MeaningQuery(input string) (string, bool) {
+	s := strings.TrimSpace(input)
+	if !strings.HasPrefix(s, "@") {
+		return "", false
+	}
+	return strings.Join(strings.Fields(s[1:]), " "), true
+}

@@ -74,6 +74,7 @@ func NewApp() *App {
 	a.settings = settings.Load(a.settingsPath, dir)
 	a.bookmarks, a.bookmarksErr = bookmarks.Open(a.settings.Bookmarks.Backend, a.settings.Bookmarks.Config, bookmarks.Deps{Authorize: a.auth.Apply})
 	a.browser.SetSearcher(a.searchPage)
+	a.browser.SetMeaningSearcher(a.meaningPage)
 	a.chats = chats.Open(file("conversations.json"))
 	return a
 }

@@ -525,3 +525,6 @@ dialog .stack[hidden] { display: none; } /* display: flex would otherwise win ov
 #tag-table textarea { resize: vertical; }
 .tag-url { margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 22rem; }
 .tag-failed td { color: var(--muted); }
+
+.search-switch { margin: 0 auto 12px; display: block; padding: 4px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); font: inherit; font-size: 0.85em; cursor: pointer; }
+.search-switch:hover { background: var(--hover); }

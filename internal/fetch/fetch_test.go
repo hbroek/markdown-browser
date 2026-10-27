@@ -222,3 +222,20 @@ func TestSearchQuery(t *testing.T) {
 		}
 	}
 }
+
+func TestMeaningQuery(t *testing.T) {
+	for in, want := range map[string]string{
+		"@ that article about  rust": "that article about rust",
+		"  @async rust talk":         "async rust talk",
+		"@":                          "",
+	} {
+		if got, ok := MeaningQuery(in); !ok || got != want {
+			t.Errorf("MeaningQuery(%q) = %q, %v; want %q", in, got, ok, want)
+		}
+	}
+	for _, in := range []string{"", "rust", "?rust", "https://a.test/@x", "me@example.com"} {
+		if _, ok := MeaningQuery(in); ok {
+			t.Errorf("MeaningQuery(%q) matched", in)
+		}
+	}
+}
