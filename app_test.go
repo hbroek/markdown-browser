@@ -462,6 +462,7 @@ func TestMeaningSearchRanksBookmarksAndHistory(t *testing.T) {
 	ctx := context.Background()
 	rust, _ := s.SaveFolder(ctx, bookmarks.Folder{Name: "Rust"})
 	s.SaveBookmark(ctx, bookmarks.Bookmark{Title: "Cooking", URL: "https://food.test/", Keywords: []string{"recipes"}})
+	time.Sleep(50 * time.Millisecond) // the clock on Windows ticks coarsely; the later save has to be the newer one
 	s.SaveBookmark(ctx, bookmarks.Bookmark{Title: "Async Rust", URL: "https://rust.test/async", FolderID: rust.ID, Keywords: []string{"rust", "async"}, Description: "About futures"})
 
 	var sent string
