@@ -98,7 +98,20 @@ body.wails-drop-target-active #content { outline: 3px dashed var(--accent); outl
 .tab-close, #tab-new { border: 0; background: none; color: inherit; font: inherit; cursor: pointer; border-radius: 4px; }
 .tab-close { padding: 0 5px; opacity: 0.6; }
 .tab-close:hover, #tab-new:hover { background: var(--hover); opacity: 1; }
-#tab-new { padding: 0 9px; align-self: center; font-size: 1.1em; color: var(--muted); }
+#tab-new {
+    flex: none;
+    align-self: center;
+    box-sizing: border-box;
+    width: 28px;
+    height: 28px;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    font-size: 1.1em;
+    line-height: 1;
+    color: var(--muted);
+}
 
 .toolbar {
     display: flex;
@@ -117,6 +130,7 @@ body.wails-drop-target-active #content { outline: 3px dashed var(--accent); outl
     cursor: pointer;
 }
 
+.toolbar .icon { width: 1.9em; height: 1.9em; display: block; margin: auto; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
 .toolbar button:disabled { opacity: 0.4; cursor: default; }
 
 #address {
@@ -315,6 +329,11 @@ button.danger.armed { background: var(--bad); color: #fff; }
     background: var(--bar);
 }
 #bookmarks-panel[hidden] { display: none; }
+.splitter { flex: none; width: 5px; margin: 0 -3px; z-index: 1; cursor: col-resize; touch-action: none; background: transparent; }
+.splitter[hidden] { display: none; }
+.splitter:hover, .splitter:focus-visible, body.resizing .splitter { background: var(--accent); opacity: 0.5; outline: 0; }
+body.resizing { cursor: col-resize; user-select: none; }
+body.resizing #content { pointer-events: none; }
 .panel-head { display: flex; gap: 6px; align-items: center; padding: 8px; border-bottom: 1px solid var(--border); }
 .panel-head button, .pencil {
     border: 1px solid var(--border);

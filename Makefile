@@ -29,7 +29,7 @@ linux:
 #   xcrun notarytool store-credentials markdown-browser --apple-id <id> --team-id <team>
 IDENTITY ?= Developer ID Application
 NOTARY_PROFILE ?= markdown-browser
-APP := build/bin/markdown-browser.app
+APP := build/bin/mardo.app
 
 # Sign with the hardened runtime (required for notarization).
 sign: build

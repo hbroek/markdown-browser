@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=Markdown Browser
+Name=Mardo
 Comment=A browser for pages served as markdown
-Exec=markdown-browser
-Icon=markdown-browser
+Exec=mardo
+Icon=mardo
 Terminal=false
 Categories=Network;WebBrowser;
-StartupWMClass=markdown-browser
+StartupWMClass=mardo

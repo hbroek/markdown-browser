@@ -13,6 +13,7 @@ import {initMenu, showCredentialState} from './theme.js';
 import {initAI, openAI, aiReady, newRequestId, cancelRequest} from './ai.js';
 import {initAsk, refreshAsk, toggleAsk} from './ask.js';
 import {initReading} from './reading.js';
+import {initSplitters} from './splitter.js';
 import {initCompare, openCompare} from './compare.js';
 import {initCredentials, openCredentials, credentialOrigins} from './creds.js';
 
@@ -158,7 +159,7 @@ function display() {
     const p = currentPage();
     const url = p?.url ?? active?.pending ?? '';
     address.value = url ? displayAddress(url) : '';
-    document.title = p?.title ? `${p.title} - Markdown Browser` : 'Markdown Browser';
+    document.title = p?.title ? `${p.title} - Mardo` : 'Mardo - Markdown Browser';
     $('back').disabled = !p?.canBack;
     $('forward').disabled = !p?.canForward;
     $('reload').disabled = !p?.url;
@@ -518,6 +519,7 @@ initAsk({
     open: (url, newTab) => (newTab ? openTab(url, {background: true}) : goActive((id) => Navigate(id, url))),
 });
 initReading({page: currentPage, run: readPage, compare: openCompare});
+initSplitters();
 initCompare({
     // A restored tab that has not been shown yet has only its address (tab.pending); the Go side reads it from there.
     tabs: () => tabs.filter((t) => t.page?.kind !== 'error').map((t) => ({title: tabTitle(t), url: t.page?.url || t.pending || ''})),

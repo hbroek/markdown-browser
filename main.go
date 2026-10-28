@@ -23,7 +23,7 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  "Markdown Browser",
+		Title:  "Mardo - Markdown Browser",
 		Width:  1024,
 		Height: 768,
 		AssetServer: &assetserver.Options{
@@ -37,7 +37,7 @@ func main() {
 		},
 		Linux: &linux.Options{
 			Icon:        icon,
-			ProgramName: "markdown-browser", // what the desktop matches the window to its launcher and icon by
+			ProgramName: "mardo", // what the desktop matches the window to its launcher and icon by
 		},
 		OnStartup: app.startup,
 		Bind: []interface{}{

@@ -25,7 +25,7 @@ const (
 	MaxBody = 10 << 20
 	Timeout = 15 * time.Second
 
-	userAgent = "markdown-browser/0.1"
+	userAgent = "mardo/0.1"
 )
 
 // Result is a fetched document.

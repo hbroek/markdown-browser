@@ -51,7 +51,7 @@ jobs:
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          APP=build/bin/markdown-browser.app
+          APP=build/bin/mardo.app
           KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
           KEYCHAIN_PASSWORD="$(uuidgen)"
           echo "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
@@ -77,19 +77,19 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           mkdir dist
-          ditto -c -k --keepParent build/bin/markdown-browser.app "dist/markdown-browser-${{ github.ref_name }}-${{ matrix.name }}.zip"
+          ditto -c -k --keepParent build/bin/mardo.app "dist/mardo-${{ github.ref_name }}-${{ matrix.name }}.zip"
       - name: Package (Windows)
         if: runner.os == 'Windows'
         run: |
           New-Item -ItemType Directory dist | Out-Null
-          Compress-Archive -Path build/bin/markdown-browser.exe -DestinationPath "dist/markdown-browser-${{ github.ref_name }}-${{ matrix.name }}.zip"
+          Compress-Archive -Path build/bin/mardo.exe -DestinationPath "dist/mardo-${{ github.ref_name }}-${{ matrix.name }}.zip"
       - name: Package (Linux)
         if: runner.os == 'Linux'
         run: |
           mkdir dist
-          pkg="markdown-browser-${{ github.ref_name }}-${{ matrix.name }}"
+          pkg="mardo-${{ github.ref_name }}-${{ matrix.name }}"
           mkdir -p "stage/$pkg"
-          cp build/bin/markdown-browser build/linux/install.sh build/linux/markdown-browser.desktop build/linux/markdown-browser.png "stage/$pkg/"
+          cp build/bin/mardo build/linux/install.sh build/linux/mardo.desktop build/linux/mardo.png "stage/$pkg/"
           tar -czf "dist/$pkg.tar.gz" -C stage "$pkg"
 
       - uses: actions/upload-artifact@v4

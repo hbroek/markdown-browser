@@ -37,5 +37,5 @@ jobs:
       - run: go test ./...
       - uses: actions/upload-artifact@v4
         with:
-          name: markdown-browser-${{ matrix.name }}
+          name: mardo-${{ matrix.name }}
           path: build/bin/*

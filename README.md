@@ -1,4 +1,4 @@
-# Markdown Browser
+# Mardo
 
 A small desktop browser for reading markdown. It asks servers for markdown, renders it, and falls back to a
 title plus link list when a page is not markdown. Go backend, HTML/CSS/JS frontend, built with
@@ -145,7 +145,7 @@ How credentials are handled:
 - The app does **not** read cookies out of other browsers.
 
 Files live in the user config directory (`~/Library/Application Support/markdown-browser` on macOS,
-`%AppData%\markdown-browser` on Windows, `~/.config/markdown-browser` on Linux): `history.json`, `history.md`,
+`%AppData%\markdown-browser` on Windows, `~/.config/markdown-browser` on Linux; the folder keeps its old name so existing settings carry over): `history.json`, `history.md`,
 `credentials.json` (site names only, no secrets) and `cookies.bin`.
 
 ## Build
@@ -157,11 +157,11 @@ Requirements: Go 1.25+, Node (for the frontend build), the [Wails CLI](https://w
 make dev       # live-reload development window
 make test      # go vet + go test
 make build     # app for the current OS, in build/bin
-make windows   # cross-compile markdown-browser.exe (works from macOS/Linux)
+make windows   # cross-compile mardo.exe (works from macOS/Linux)
 ```
 
-Linux needs `libgtk-3-dev` and `libwebkit2gtk-4.1-dev` (and a Secret Service such as gnome-keyring for
-credentials); build with `make linux`.
+Linux needs `libgtk-3-dev` and `libwebkit2gtk-4.1-dev` (a Secret Service such as gnome-keyring is used for
+credentials when there is one); build with `make linux`.
 
 The Linux release is a folder with the program, `install.sh`, a launcher entry and the icon. Run `./install.sh` inside it to put them under
 `~/.local` (program, application-menu entry and icon; delete those three files to uninstall). Without it the program runs but

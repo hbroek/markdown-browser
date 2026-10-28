@@ -26,7 +26,7 @@ export function welcome() {
         ['Ctrl/Cmd + J', 'Show / hide the network console'],
     ];
     return el('section', {className: 'welcome'},
-        el('h1', {textContent: 'Markdown Browser'}),
+        el('h1', {textContent: 'Mardo - Markdown Browser'}),
         el('p', {textContent: 'Enter an http, https or file address above. Pages are requested as markdown and rendered here. Anything else shows its title and links.'}),
         el('dl', {}, ...shortcuts.flatMap(([k, v]) => [el('dt', {textContent: k}), el('dd', {textContent: v})])),
     );

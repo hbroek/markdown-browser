@@ -41,7 +41,7 @@ func TestKeyringCallGivesUpWhenNobodyAnswers(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "Seahorse") || time.Since(started) > 2*time.Second {
 		t.Fatalf("err = %v after %v", err, time.Since(started))
 	}
-	// For the next minute calls fail at once instead of waiting out their own timeout.
+	// For the pause calls fail at once instead of waiting out their own timeout.
 	started = time.Now()
 	if _, err := callKeyring(func() (string, error) { return "x", nil }); err == nil || time.Since(started) > 20*time.Millisecond {
 		t.Errorf("second call: %v after %v", err, time.Since(started))

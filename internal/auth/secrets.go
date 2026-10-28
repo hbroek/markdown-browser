@@ -42,7 +42,12 @@ func (KeyringStore) Set(name, value string) error {
 // keyringTimeout is how long a keyring call may take. A locked Linux keyring waits
 // for someone to answer an unlock prompt, which may be hidden behind a window or never
 // shown; without a limit the whole app waits with it.
-var keyringTimeout = 30 * time.Second
+var keyringTimeout = 15 * time.Second
+
+// keyringPause is how long calls fail at once after a timeout. Without a pause every save
+// would wait out the timeout again (with the file fallback, a machine with no keyring
+// would stall on each one).
+var keyringPause = 30 * time.Minute
 
 var keyringDown struct {
 	mu    sync.Mutex
@@ -54,7 +59,7 @@ const keyringSilent = "the system keyring did not answer. A password prompt to u
 	"(look in the taskbar), or the keyring is not running. Unlock the \"login\" keyring in \"Passwords and Keys\" (Seahorse), then try again"
 
 // callKeyring runs one keyring call and gives up after keyringTimeout. After a timeout,
-// calls fail at once for a minute, so every request does not wait out its own timeout.
+// calls fail at once for keyringPause, so every request does not wait out its own timeout.
 func callKeyring[T any](fn func() (T, error)) (T, error) {
 	var zero T
 	keyringDown.mu.Lock()
@@ -77,7 +82,7 @@ func callKeyring[T any](fn func() (T, error)) (T, error) {
 		return r.v, r.err
 	case <-time.After(keyringTimeout):
 		keyringDown.mu.Lock()
-		keyringDown.until = time.Now().Add(time.Minute)
+		keyringDown.until = time.Now().Add(keyringPause)
 		keyringDown.mu.Unlock()
 		return zero, errors.New(keyringSilent)
 	}
