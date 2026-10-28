@@ -214,6 +214,13 @@ func (m *Manager) List() []Info {
 	return out
 }
 
+// Readable reports whether the secret for origin is saved and can actually be read,
+// unlike List, which only lists what the index remembers.
+func (m *Manager) Readable(origin string) bool {
+	_, ok := m.lookup(origin)
+	return ok
+}
+
 func (m *Manager) lookup(origin string) (Credential, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

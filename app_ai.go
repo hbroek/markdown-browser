@@ -51,12 +51,7 @@ func aiOrigin(baseURL string) (origin string, remote bool, err error) {
 }
 
 func (a *App) aiHasKey(origin string) bool {
-	for _, info := range a.auth.List() {
-		if info.Origin == origin {
-			return true
-		}
-	}
-	return false
+	return a.auth.Readable(origin)
 }
 
 // aiContext is the context for one AI request. With an id from the page, CancelAI

@@ -66,7 +66,11 @@ func NewApp() *App {
 		return filepath.Join(dir, name)
 	}
 
-	keychain := auth.KeyringStore{}
+	// Without a system keyring (bare Linux desktops) secrets go to an encrypted file.
+	var keychain auth.Secrets = auth.KeyringStore{}
+	if dir != "" {
+		keychain = auth.WithFallback{Primary: auth.KeyringStore{}, Fallback: auth.NewFileStore(dir)}
+	}
 	a := &App{
 		auth: auth.NewManager(keychain, file("credentials.json")),
 		jar:  cookies.New(keychain, file("cookies.bin")),
@@ -342,7 +346,7 @@ func (a *App) BookmarkSettings() BookmarkSettings {
 	}
 	origin := linkagogoOrigin(a.lggURL)
 	for _, c := range a.auth.List() {
-		if c.Origin == origin && c.Kind == auth.Bearer {
+		if c.Origin == origin && c.Kind == auth.Bearer && a.auth.Readable(origin) {
 			out.Connected = true
 		}
 	}
