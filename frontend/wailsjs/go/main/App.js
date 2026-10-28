@@ -154,12 +154,20 @@ export function SavePage(arg1) {
   return window['go']['main']['App']['SavePage'](arg1);
 }
 
+export function SaveSource(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['SaveSource'](arg1, arg2, arg3, arg4, arg5);
+}
+
 export function SavedConversation(arg1) {
   return window['go']['main']['App']['SavedConversation'](arg1);
 }
 
 export function SearchBookmarks(arg1) {
   return window['go']['main']['App']['SearchBookmarks'](arg1);
+}
+
+export function SetViewShown(arg1, arg2) {
+  return window['go']['main']['App']['SetViewShown'](arg1, arg2);
 }
 
 export function SuggestBookmark(arg1, arg2) {

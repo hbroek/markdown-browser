@@ -557,6 +557,8 @@ export namespace page {
 	    html: string;
 	    source: string;
 	    links: Link[];
+	    editUrl: string;
+	    etag: string;
 	    error: string;
 	    origin: string;
 	    authScheme: string;
@@ -577,6 +579,8 @@ export namespace page {
 	        this.html = source["html"];
 	        this.source = source["source"];
 	        this.links = this.convertValues(source["links"], Link);
+	        this.editUrl = source["editUrl"];
+	        this.etag = source["etag"];
 	        this.error = source["error"];
 	        this.origin = source["origin"];
 	        this.authScheme = source["authScheme"];

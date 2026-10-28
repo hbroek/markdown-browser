@@ -70,8 +70,32 @@ export function summary(s, onClose, onCancel) {
         s.state === 'done' ? el('p', {className: 'note', textContent: `Written by ${s.source} in ${seconds(s.millis)}; it can be wrong.`}) : '');
 }
 
-export function source(p) {
-    return el('pre', {className: 'source'}, el('code', {textContent: p.source}));
+/**
+ * The markdown source. When the server allows saving it (p.editUrl), an Edit button turns it into a text box;
+ * `ed` is {draft, saving, error, onEdit, onInput, onSave, onCancel}, with draft null while not editing.
+ */
+export function source(p, ed) {
+    if (!p.editUrl || !ed) return el('pre', {className: 'source'}, el('code', {textContent: p.source}));
+    if (ed.draft === null) {
+        return el('div', {className: 'source-wrap'},
+            el('div', {className: 'edit-bar'},
+                el('span', {className: 'note', textContent: 'The server lets you change this document.'}),
+                el('button', {type: 'button', textContent: 'Edit', onclick: ed.onEdit})),
+            el('pre', {className: 'source'}, el('code', {textContent: p.source})));
+    }
+    const area = el('textarea', {className: 'source-edit', value: ed.draft, spellcheck: false, disabled: ed.saving, ariaLabel: 'Markdown source'});
+    area.addEventListener('input', () => ed.onInput(area.value));
+    area.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && (e.key === 'Enter' || e.key.toLowerCase() === 's')) { e.preventDefault(); ed.onSave(); }
+        else if (e.key === 'Escape') { e.preventDefault(); ed.onCancel(); }
+    });
+    return el('div', {className: 'source-wrap'},
+        el('div', {className: 'edit-bar'},
+            el('button', {type: 'button', className: 'primary', textContent: ed.saving ? 'Saving\u2026' : 'Save', disabled: ed.saving, onclick: ed.onSave}),
+            el('button', {type: 'button', textContent: 'Cancel', disabled: ed.saving, onclick: ed.onCancel}),
+            el('span', {className: 'note', textContent: 'Ctrl/Cmd+Enter saves, Esc cancels.'})),
+        ed.error ? el('p', {className: 'error-text', textContent: ed.error}) : '',
+        area);
 }
 
 export function fallback(p, onCredentials) {

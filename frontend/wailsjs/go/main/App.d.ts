@@ -84,9 +84,13 @@ export function SaveCredential(arg1:auth.Credential):Promise<string>;
 
 export function SavePage(arg1:page.Page):Promise<string>;
 
+export function SaveSource(arg1:number,arg2:string,arg3:string,arg4:string,arg5:string):Promise<page.Page>;
+
 export function SavedConversation(arg1:string):Promise<Array<main.ChatTurn>>;
 
 export function SearchBookmarks(arg1:string):Promise<Array<bookmarks.Bookmark>>;
+
+export function SetViewShown(arg1:string,arg2:boolean):Promise<void>;
 
 export function SuggestBookmark(arg1:string,arg2:string):Promise<ai.Suggestion>;
 

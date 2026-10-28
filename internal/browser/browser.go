@@ -227,6 +227,9 @@ func (b *Browser) load(ctx context.Context, rawURL string) page.Page {
 		}
 		p.Kind, p.HTML, p.Source = page.KindMarkdown, html, string(res.Body)
 		p.Title = title
+		if p.EditURL = fetch.Editable(res); p.EditURL != "" {
+			p.ETag = res.Header.Get("ETag")
+		}
 	} else {
 		p.Kind = page.KindFallback
 		p.Title, p.Links = render.Fallback(res.Body, res.ContentType, base)

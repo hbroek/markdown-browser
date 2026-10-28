@@ -8,7 +8,11 @@ title plus link list when a page is not markdown. Go backend, HTML/CSS/JS fronte
 
 - Address bar, back, forward, reload, and a history (saved between runs; **History** is in the ☰ menu)
 - Requests `Accept: text/markdown`; renders markdown (GFM tables, task lists, footnotes) as sanitized HTML
-- **Source** button shows the raw markdown
+- **Source** button shows the raw markdown. When the server allows saving (`Allow: PUT`, optionally `Link: <…>; rel="edit"` on the same server), an
+  **Edit** button turns it into an editor; saving sends `PUT` with the saved credentials and `If-Match` from the page's `ETag`,
+  and says so if the document changed in the meantime
+- On macOS a native menu bar (File, Edit, View, Bookmarks, Tools, Window) has the same actions as the toolbar and shortcuts; Edit > Select All
+  selects the field, bookmarks, chat or page you are in. Other systems keep the ☰ menu
 - Not markdown? Shows the page title and the links found on it
 - RSS and Atom feeds render as a list of posts; an item's `<source:markdown>` is used when present
 - `http`, `https` and `file://`; drop a `.md` file on the window to open it. Relative links and images work,
@@ -200,9 +204,8 @@ For the release workflow, add these repository secrets (Settings > Secrets and v
 
 ## Roadmap
 
-**Editing.** Edit the markdown of the page you are reading and save it back: local files first (the source view becomes an
-editor with a live preview, and saving writes the file). Saving a remote page needs a write protocol the server accepts (HTTP `PUT`
-with the saved credentials, WebDAV, or a Git host's API), so that comes after, one protocol at a time.
+**Editing.** Remote pages can be edited when the server allows `PUT` (see **Source** above). Still to do: local files (the source view as
+an editor with a live preview, saving writes the file), `PATCH`, and other write protocols (WebDAV, a Git host's API), one at a time.
 
 **Social media.** Not defined yet. Ideas to choose from: share a page, a selection or an AI summary as a post (copy as formatted text, or
 post to Mastodon or Bluesky with an app password kept in the keychain), and save links from a feed or a timeline as bookmarks.

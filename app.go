@@ -27,16 +27,18 @@ import (
 	"markdown-browser/internal/render"
 	"markdown-browser/internal/settings"
 
+	"github.com/wailsapp/wails/v2/pkg/menu"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App holds the state shared with the frontend through Wails bindings.
 type App struct {
-	ctx     context.Context
-	browser *browser.Browser
-	auth    *auth.Manager
-	jar     *cookies.Jar
-	fetcher *fetch.Fetcher
+	ctx       context.Context
+	viewItems map[string]*menu.MenuItem // the View menu's show/hide items (macOS)
+	browser   *browser.Browser
+	auth      *auth.Manager
+	jar       *cookies.Jar
+	fetcher   *fetch.Fetcher
 
 	bmMu         sync.RWMutex
 	bookmarks    bookmarks.Store // nil when the backend failed to open

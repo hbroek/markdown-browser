@@ -207,6 +207,28 @@ a { color: var(--link); }
     overflow-wrap: anywhere;
 }
 
+/* editing the source */
+.source-wrap { max-width: 52rem; margin: 0 auto; }
+.source-wrap .source { max-width: none; }
+.edit-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.edit-bar button { padding: 4px 14px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); cursor: pointer; }
+.edit-bar button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.edit-bar button:disabled { opacity: 0.5; cursor: default; }
+.source-edit {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 60vh;
+    padding: 16px;
+    background: var(--code-bg);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font: 0.9rem/1.5 var(--mono);
+    resize: vertical;
+}
+.source-edit:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
 /* rendered markdown */
 .markdown { line-height: 1.65; overflow-wrap: anywhere; }
 .markdown h1, .markdown h2 { padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }

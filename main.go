@@ -2,11 +2,14 @@ package main
 
 import (
 	"embed"
+	"runtime"
 
 	"github.com/wailsapp/wails/v2"
+	"github.com/wailsapp/wails/v2/pkg/menu"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
+	"github.com/wailsapp/wails/v2/pkg/options/mac"
 )
 
 //go:embed all:frontend/dist
@@ -20,6 +23,12 @@ var icon []byte
 func main() {
 	// Create an instance of the app structure
 	app := NewApp()
+
+	// The menu bar is macOS only; other systems use the menu in the toolbar.
+	var bar *menu.Menu
+	if runtime.GOOS == "darwin" {
+		bar = app.macMenu()
+	}
 
 	// Create application with options
 	err := wails.Run(&options.App{
@@ -35,11 +44,15 @@ func main() {
 			EnableFileDrop:     true,
 			DisableWebViewDrop: true,
 		},
+		// Without Mac options Wails leaves the green zoom button disabled.
+		Mac: &mac.Options{},
 		Linux: &linux.Options{
 			Icon:        icon,
 			ProgramName: "mardo", // what the desktop matches the window to its launcher and icon by
 		},
-		OnStartup: app.startup,
+		Menu:       bar,
+		OnStartup:  app.startup,
+		OnDomReady: app.domReady,
 		Bind: []interface{}{
 			app,
 		},

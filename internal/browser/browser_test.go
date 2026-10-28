@@ -273,3 +273,22 @@ func TestMeaningSearchPage(t *testing.T) {
 		t.Errorf("without a searcher: %+v", p)
 	}
 }
+
+func TestEditablePageCarriesEditAddressAndVersion(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/markdown")
+		if r.URL.Path == "/rw" {
+			w.Header().Set("Allow", "GET, HEAD, PUT")
+			w.Header().Set("ETag", `"v7"`)
+		}
+		w.Write([]byte("# Doc"))
+	}))
+	defer srv.Close()
+	b := New(history.Open(""), fetch.NewFetcher(nil, nil))
+	if p := b.Navigate(context.Background(), 1, srv.URL+"/rw"); p.EditURL != srv.URL+"/rw" || p.ETag != `"v7"` {
+		t.Errorf("editable page = %+v", p)
+	}
+	if p := b.Navigate(context.Background(), 1, srv.URL+"/ro"); p.EditURL != "" || p.ETag != "" {
+		t.Errorf("read-only page offers editing: %+v", p)
+	}
+}

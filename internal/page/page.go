@@ -23,9 +23,11 @@ type Page struct {
 	Status      int    `json:"status"`
 	ContentType string `json:"contentType"`
 	Title       string `json:"title"`
-	HTML        string `json:"html"`   // sanitized, links resolved (markdown only)
-	Source      string `json:"source"` // raw markdown (markdown only)
-	Links       []Link `json:"links"`  // fallback only
+	HTML        string `json:"html"`    // sanitized, links resolved (markdown only)
+	Source      string `json:"source"`  // raw markdown (markdown only)
+	Links       []Link `json:"links"`   // fallback only
+	EditURL     string `json:"editUrl"` // where the markdown can be saved with PUT, when the server allows it
+	ETag        string `json:"etag"`    // the version loaded, sent back as If-Match
 	Error       string `json:"error"`
 
 	Origin     string `json:"origin"`     // set on 401/403 so the UI can offer credentials

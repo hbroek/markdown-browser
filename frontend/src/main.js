@@ -1,11 +1,11 @@
 import './style.css';
 import './schemes.css';
-import {Navigate, Reload, Back, Forward, ClearHistory, FullHistory, BookmarkFor, NewTab, CloseTab, SummarizePage, ReadPage, SavePage} from '../wailsjs/go/main/App';
-import {OnFileDrop} from '../wailsjs/runtime/runtime';
+import {Navigate, Reload, Back, Forward, ClearHistory, FullHistory, BookmarkFor, NewTab, CloseTab, SummarizePage, ReadPage, SavePage, SaveSource, SetViewShown} from '../wailsjs/go/main/App';
+import {OnFileDrop, EventsOn} from '../wailsjs/runtime/runtime';
 import * as view from './view.js';
 import {initConsole, toggleConsole} from './console.js';
 import {initBookmarks, openBookmark} from './bookmarks.js';
-import {initPanel, panelShortcut, refreshPanel} from './bookmarkpanel.js';
+import {initPanel, panelShortcut, refreshPanel, togglePanel} from './bookmarkpanel.js';
 import {initStorage} from './storage.js';
 import {initTagging} from './tagging.js';
 import {initOrganize} from './organize.js';
@@ -32,6 +32,41 @@ let saved = null;        // the bookmark for the active tab's page, if any
 
 const currentPage = () => active?.page ?? null;
 
+/** The state of editing the active tab's source, for view.source. */
+function editor() {
+    const tab = active;
+    return {
+        draft: tab.draft ?? null,
+        saving: !!tab.saving,
+        error: tab.saveError ?? '',
+        onEdit: () => { tab.draft = tab.page.source; tab.saveError = ''; render(); $('content').querySelector('.source-edit')?.focus(); },
+        onInput: (text) => { tab.draft = text; },
+        onSave: () => saveEdit(),
+        onCancel: () => { tab.draft = null; tab.saveError = ''; render(); },
+    };
+}
+
+/** Saves the edited source to the server; the tab then shows what is stored. */
+async function saveEdit() {
+    const tab = active;
+    const p = tab?.page;
+    if (!p?.editUrl || tab.draft == null || tab.saving) return;
+    tab.saving = true;
+    tab.saveError = '';
+    render();
+    try {
+        const fresh = await SaveSource(tab.id, p.url, p.editUrl, p.etag, tab.draft);
+        if (fresh.kind === 'error') throw new Error(fresh.error);
+        tab.saving = false;
+        show(tab, fresh);
+        toast('Saved to the server.');
+    } catch (e) {
+        tab.saving = false;
+        tab.saveError = String(e).replace(/^Error: /, '');
+        if (tab === active) { render(); $('content').querySelector('.source-edit')?.focus(); }
+    }
+}
+
 function render() {
     const p = currentPage();
     const showSource = active?.showSource ?? false;
@@ -40,7 +75,7 @@ function render() {
     sourceBtn.setAttribute('aria-pressed', String(showSource && !sourceBtn.disabled));
     const body = (
         !p ? view.welcome()
-            : p.kind === 'markdown' ? (showSource ? view.source(p) : view.markdown(p))
+            : p.kind === 'markdown' ? (showSource ? view.source(p, editor()) : view.markdown(p))
             : p.kind === 'fallback' ? view.fallback(p, (origin) => openCredentials({origin}))
             : view.error(p, () => goActive((id) => Navigate(id, p.url)), (page) => openCredentials({origin: page.origin, kind: page.authScheme === 'basic' ? 'basic' : page.authScheme === 'bearer' ? 'bearer' : 'cookie'})));
     const extras = [copyBar(p), searchSwitch(p), active?.summary ? view.summary(active.summary, closeSummary, cancelSummary) : null].filter(Boolean);
@@ -64,6 +99,7 @@ function toast(text, isError = false) {
 
 /** Saves the page as a markdown file: its own markdown, or the title and links of any other page. */
 async function savePage() {
+    if (active?.draft != null) return saveEdit(); // while editing the source, Save means save the edit
     const p = currentPage();
     if (!p?.url || p.kind === 'error' || isSearch(p.url)) return toast('Open a page first, then save it.', true);
     try {
@@ -176,6 +212,8 @@ function show(tab, p) {
     tab.summary = null;
     if (tab.chat && tab.chat.url !== p.url) tab.chat = null; // a conversation is about one page; it is saved and comes back with the page
     tab.showSource = false;
+    tab.draft = null;
+    tab.saveError = '';
     if (tab === active) display();
     renderTabs();
 }
@@ -434,11 +472,99 @@ content.addEventListener('auxclick', (e) => { // middle click
     openTab(a.href, {background: true});
 });
 
+const menuItems = {
+    credentials: () => openCredentials({origin: originOf(currentPage()?.url ?? '').replace(/^null$/, '')}),
+    ai: openAI,
+    savePage,
+    history: () => goActive(FullHistory),
+    clearHistory: () => ClearHistory(),
+};
+
+/** Runs a bookmark tool from the menu by pressing its button, with the panel open so its messages are seen. */
+async function bookmarkTool(button) {
+    await togglePanel(true);
+    $(button).click();
+}
+
+// What the macOS menu bar does: its items have the shortcuts, and send their id here.
+const menuActions = {
+    'new-tab': () => openTab(),
+    'close-tab': () => closeTab(active),
+    'save-page': savePage,
+    'copy-markdown': copyMarkdown,
+    'bookmark-page': () => { if (currentPage()?.url && !isSearch(currentPage().url)) openBookmarkDialog(); },
+    reload: () => { if (currentPage()?.url) goActive(Reload); },
+    back: () => { if (!$('back').disabled) goActive(Back); },
+    forward: () => { if (!$('forward').disabled) goActive(Forward); },
+    address: () => address.focus(),
+    // The menu item says Show or Hide, so it does just that (the Ctrl+B key moves into the panel first).
+    bookmarks: () => ($('bookmarks-panel').hidden ? panelShortcut() : togglePanel(false)),
+    'bookmarks-new-folder': () => bookmarkTool('folder-new'),
+    'bookmarks-organize': () => bookmarkTool('bookmarks-organize'),
+    'bookmarks-tag': () => bookmarkTool('bookmarks-tag'),
+    'bookmarks-import': () => bookmarkTool('bookmarks-import'),
+    'bookmarks-export': () => bookmarkTool('bookmarks-export'),
+    'bookmarks-export-md': () => bookmarkTool('bookmarks-export-md'),
+    'bookmarks-storage': () => bookmarkTool('storage-open'),
+    console: toggleConsole,
+    source: toggleSource,
+    ask: toggleAsk,
+    summary: summarize,
+    ai: menuItems.ai,
+    credentials: menuItems.credentials,
+    history: menuItems.history,
+    'clear-history': menuItems.clearHistory,
+};
+// Select All depends on where you are: a field selects its text, the bookmarks panel its
+// folders and bookmarks, the chat its whole conversation, otherwise the page.
+let lastPane = null;
+document.addEventListener('pointerdown', (e) => { lastPane = e.target.closest('#bookmarks-panel, #ask-panel, #content'); }, true);
+function selectAll() {
+    const focus = document.activeElement;
+    if (focus?.matches('input:not([type=checkbox]):not([type=radio]), textarea')) { focus.select(); return; }
+    const pane = focus?.closest?.('#bookmarks-panel, #ask-panel, #content') ?? lastPane;
+    const target = pane?.id === 'bookmarks-panel' ? $('bookmarks-tree')
+        : pane?.id === 'ask-panel' ? $('ask-log')
+        : content;
+    const range = document.createRange();
+    range.selectNodeContents(target);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+}
+menuActions['select-all'] = selectAll;
+EventsOn('menu', (id) => menuActions[id]?.());
+
+// The macOS View menu says Show or Hide for these four. Watch them rather than every place that changes them.
+const viewShown = {};
+function syncViewMenu() {
+    const now = {
+        bookmarks: !$('bookmarks-panel').hidden,
+        console: !$('console').hidden,
+        source: sourceBtn.getAttribute('aria-pressed') === 'true',
+        ask: !$('ask-panel').hidden,
+    };
+    for (const [id, shown] of Object.entries(now)) {
+        if (viewShown[id] !== shown) { viewShown[id] = shown; if (navigator.platform.startsWith('Mac')) SetViewShown(id, shown); }
+    }
+}
+const viewObserver = new MutationObserver(syncViewMenu);
+for (const [id, attr] of [['bookmarks-panel', 'hidden'], ['console', 'hidden'], ['ask-panel', 'hidden']]) viewObserver.observe($(id), {attributes: true, attributeFilter: [attr]});
+viewObserver.observe(sourceBtn, {attributes: true, attributeFilter: ['aria-pressed']});
+syncViewMenu();
+
 // Keyboard shortcuts. "mod" is Cmd on macOS and Ctrl elsewhere.
 const isMac = navigator.platform.startsWith('Mac');
+/** True for the keys the macOS menu bar has as shortcuts. */
+function menuOwnsKey(e, mod, key) {
+    if (!mod || e.altKey) return false;
+    if (e.shiftKey) return key === 'a' || key === 'c';
+    return 'lrujbdtws[]'.includes(key) && key.length === 1;
+}
 document.addEventListener('keydown', (e) => {
     const mod = isMac ? e.metaKey : e.ctrlKey;
     const key = e.key.toLowerCase();
+    if (isMac && menuOwnsKey(e, mod, key)) return; // the menu bar runs it and sends a "menu" event
     let handled = true;
     if (mod && key === 'l') address.focus();
     else if (mod && key === 'r') { if (currentPage()?.url) goActive(Reload); }
@@ -506,13 +632,7 @@ initStorage(() => { updateBookmarkIndicator(); refreshPanel(); });
 initTagging(() => { updateBookmarkIndicator(); refreshPanel(); });
 initOrganize(() => { updateBookmarkIndicator(); refreshPanel(); });
 
-initMenu({
-    credentials: () => openCredentials({origin: originOf(currentPage()?.url ?? '').replace(/^null$/, '')}),
-    ai: openAI,
-    savePage,
-    history: () => goActive(FullHistory),
-    clearHistory: () => ClearHistory(),
-});
+initMenu(menuItems);
 initAI();
 initAsk({
     tab: () => active,

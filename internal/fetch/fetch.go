@@ -34,6 +34,7 @@ type Result struct {
 	Status      int
 	ContentType string
 	Body        []byte
+	Header      http.Header // response headers (http only)
 
 	WWWAuthenticate string // challenge sent with a 401, if any
 }
@@ -196,6 +197,7 @@ func (f *Fetcher) getHTTP(ctx context.Context, u *url.URL, accept string) (*Resu
 		Status:      resp.StatusCode,
 		ContentType: resp.Header.Get("Content-Type"),
 		Body:        body,
+		Header:      resp.Header,
 
 		WWWAuthenticate: resp.Header.Get("Www-Authenticate"),
 	}, nil

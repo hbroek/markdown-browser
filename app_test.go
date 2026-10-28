@@ -653,3 +653,46 @@ func TestCompareTabs(t *testing.T) {
 		t.Error("seven pages were compared")
 	}
 }
+
+func TestSaveSourceWritesBackAndReloads(t *testing.T) {
+	var mu sync.Mutex
+	doc, version := "# Old\n", 1
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		switch r.Method {
+		case http.MethodPut:
+			if r.Header.Get("If-Match") != `"v`+string(rune('0'+version))+`"` {
+				w.WriteHeader(http.StatusPreconditionFailed)
+				return
+			}
+			b, _ := io.ReadAll(r.Body)
+			doc, version = string(b), version+1
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			w.Header().Set("Content-Type", "text/markdown")
+			w.Header().Set("Allow", "GET, PUT")
+			w.Header().Set("ETag", `"v`+string(rune('0'+version))+`"`)
+			w.Write([]byte(doc))
+		}
+	}))
+	defer srv.Close()
+
+	fetcher := fetch.NewFetcher(nil, nil)
+	a := &App{ctx: context.Background(), fetcher: fetcher, browser: browser.New(history.Open(""), fetcher)}
+	p := a.Navigate(1, srv.URL+"/doc.md")
+	if p.EditURL == "" || p.ETag != `"v1"` {
+		t.Fatalf("page = %+v", p)
+	}
+
+	fresh, err := a.SaveSource(1, p.URL, p.EditURL, p.ETag, "# New\n")
+	if err != nil || fresh.Title != "New" || fresh.ETag != `"v2"` {
+		t.Fatalf("after save: %+v, %v", fresh, err)
+	}
+	if _, err := a.SaveSource(1, p.URL, p.EditURL, p.ETag, "# Stale\n"); err == nil || !strings.Contains(err.Error(), "changed on the server") {
+		t.Errorf("saving a stale version: %v", err)
+	}
+	if _, err := a.SaveSource(1, p.URL, "https://elsewhere.test/doc.md", fresh.ETag, "x"); err == nil {
+		t.Error("saved to another server")
+	}
+}
