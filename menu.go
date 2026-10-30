@@ -2,47 +2,107 @@ package main
 
 import (
 	"context"
+	"strings"
 
 	"github.com/wailsapp/wails/v2/pkg/menu"
 	"github.com/wailsapp/wails/v2/pkg/menu/keys"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+
+	goruntime "runtime"
 )
 
-// macMenu is the menu bar on macOS. Each item sends its id to the page as a "menu" event,
-// and the page runs it (see menuActions in main.js). The page does not handle those shortcuts itself on macOS.
-func (a *App) macMenu() *menu.Menu {
-	send := func(id string) menu.Callback {
-		return func(*menu.CallbackData) { runtime.EventsEmit(a.ctx, "menu", id) }
+var onMac = goruntime.GOOS == "darwin"
+
+// hint is how a shortcut reads in a menu on Windows and Linux: Ctrl+Shift+C.
+func hint(a *keys.Accelerator) string {
+	if a == nil {
+		return ""
 	}
-	item := func(m *menu.Menu, label, id string, accel *keys.Accelerator) {
-		m.AddText(label, accel, send(id))
+	var parts []string
+	for _, m := range a.Modifiers {
+		switch m {
+		case keys.CmdOrCtrlKey:
+			parts = append(parts, "Ctrl")
+		case keys.ShiftKey:
+			parts = append(parts, "Shift")
+		}
+	}
+	return strings.Join(append(parts, strings.ToUpper(a.Key)), "+")
+}
+
+// label is a menu item's text with its shortcut. On Windows and Linux the page handles the keys
+// (the same ones as before the menu existed), so the menu only shows them; a tab sets it off to the right.
+func label(text string, accel *keys.Accelerator) string {
+	if onMac || accel == nil {
+		return text
+	}
+	return text + "\t" + hint(accel)
+}
+
+// appMenu is the menu bar. Each item sends its id to the page as a "menu" event, and the page runs it
+// (see menuActions in main.js). On macOS the menu owns the shortcuts and the page skips them; on Windows and
+// Linux the page keeps handling the keys and the menu just lists them.
+func (a *App) appMenu() *menu.Menu {
+	send := func(id string) menu.Callback {
+		// A goroutine: the page cannot be reached from inside a menu's own callback, which runs on the UI thread.
+		return func(*menu.CallbackData) { go runtime.EventsEmit(a.ctx, "menu", id) }
+	}
+	item := func(m *menu.Menu, text, id string, accel *keys.Accelerator) {
+		if !onMac {
+			m.AddText(label(text, accel), nil, send(id))
+			return
+		}
+		m.AddText(text, accel, send(id))
 	}
 	cmd := keys.CmdOrCtrl
 	cmdShift := func(k string) *keys.Accelerator { return keys.Combo(k, keys.CmdOrCtrlKey, keys.ShiftKey) }
 
 	bar := menu.NewMenu()
-	bar.Append(menu.AppMenu())
+	if onMac {
+		bar.Append(menu.AppMenu())
+	}
 
 	file := bar.AddSubmenu("File")
 	item(file, "New Tab", "new-tab", cmd("t"))
 	item(file, "Close Tab", "close-tab", cmd("w"))
 	file.AddSeparator()
+	item(file, "Edit Page", "edit-page", cmd("e"))
 	item(file, "Save Page…", "save-page", cmd("s"))
 	item(file, "Copy Markdown", "copy-markdown", cmdShift("c"))
+	if !onMac {
+		file.AddSeparator()
+		file.AddText("Exit", nil, func(*menu.CallbackData) { runtime.Quit(a.ctx) })
+	}
 
-	bar.Append(menu.EditMenu())
+	if onMac {
+		bar.Append(menu.EditMenu())
+	} else {
+		// Cut, copy and paste work in the page's own fields; Select All depends on where you are.
+		edit := bar.AddSubmenu("Edit")
+		item(edit, "Select All", "select-all", cmd("a"))
+	}
 
 	view := bar.AddSubmenu("View")
 	item(view, "Reload", "reload", cmd("r"))
-	item(view, "Back", "back", cmd("["))
-	item(view, "Forward", "forward", cmd("]"))
+	if onMac {
+		item(view, "Back", "back", cmd("["))
+		item(view, "Forward", "forward", cmd("]"))
+	} else {
+		view.AddText("Back\tAlt+Left", nil, send("back"))
+		view.AddText("Forward\tAlt+Right", nil, send("forward"))
+	}
 	view.AddSeparator()
 	item(view, "Focus Address Bar", "address", cmd("l"))
 	view.AddSeparator()
 	// These four say Show or Hide, kept up to date by SetViewShown.
 	a.viewItems = map[string]*menu.MenuItem{}
 	toggle := func(id, name string, accel *keys.Accelerator) {
-		a.viewItems[id] = view.AddText("Show "+name, accel, send(id))
+		viewKeys[id] = accel
+		if onMac {
+			a.viewItems[id] = view.AddText("Show "+name, accel, send(id))
+		} else {
+			a.viewItems[id] = view.AddText(label("Show "+name, accel), nil, send(id))
+		}
 	}
 	toggle("bookmarks", "Bookmarks", cmd("b"))
 	toggle("console", "Console", cmd("j"))
@@ -70,7 +130,9 @@ func (a *App) macMenu() *menu.Menu {
 	item(tools, "History", "history", nil)
 	item(tools, "Clear History", "clear-history", nil)
 
-	bar.Append(menu.WindowMenu())
+	if onMac {
+		bar.Append(menu.WindowMenu())
+	}
 	return bar
 }
 
@@ -82,6 +144,9 @@ func (a *App) domReady(context.Context) {
 	routeSelectAll()
 }
 
+// viewKeys remembers each toggle's shortcut, for relabelling it.
+var viewKeys = map[string]*keys.Accelerator{}
+
 // viewNames is what each View menu toggle is called after "Show " / "Hide ".
 var viewNames = map[string]string{"bookmarks": "Bookmarks", "console": "Console", "source": "Source", "ask": "Ask Panel"}
 
@@ -91,14 +156,15 @@ func (a *App) SetViewShown(id string, shown bool) {
 	if item == nil {
 		return
 	}
-	label := "Show " + viewNames[id]
+	verb := "Show "
 	if shown {
-		label = "Hide " + viewNames[id]
+		verb = "Hide "
 	}
-	if item.Label == label {
+	text := label(verb+viewNames[id], viewKeys[id])
+	if item.Label == text {
 		return
 	}
-	item.SetLabel(label)
+	item.SetLabel(text)
 	runtime.MenuUpdateApplicationMenu(a.ctx)
 	routeSelectAll() // the update builds the menu bar again
 }

@@ -89,7 +89,7 @@ export function source(p, ed) {
         if ((e.metaKey || e.ctrlKey) && (e.key === 'Enter' || e.key.toLowerCase() === 's')) { e.preventDefault(); ed.onSave(); }
         else if (e.key === 'Escape') { e.preventDefault(); ed.onCancel(); }
     });
-    return el('div', {className: 'source-wrap'},
+    return el('div', {className: 'source-wrap editing'},
         el('div', {className: 'edit-bar'},
             el('button', {type: 'button', className: 'primary', textContent: ed.saving ? 'Saving\u2026' : 'Save', disabled: ed.saving, onclick: ed.onSave}),
             el('button', {type: 'button', textContent: 'Cancel', disabled: ed.saving, onclick: ed.onCancel}),

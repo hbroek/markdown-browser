@@ -11,8 +11,9 @@ title plus link list when a page is not markdown. Go backend, HTML/CSS/JS fronte
 - **Source** button shows the raw markdown. When the server allows saving (`Allow: PUT`, optionally `Link: <…>; rel="edit"` on the same server), an
   **Edit** button turns it into an editor; saving sends `PUT` with the saved credentials and `If-Match` from the page's `ETag`,
   and says so if the document changed in the meantime
-- On macOS a native menu bar (File, Edit, View, Bookmarks, Tools, Window) has the same actions as the toolbar and shortcuts; Edit > Select All
-  selects the field, bookmarks, chat or page you are in. Other systems keep the ☰ menu
+- A native menu bar (File, Edit, View, Bookmarks, Tools; plus the app and Window menus on macOS) has the same actions as the toolbar and
+  shortcuts; Edit > Select All selects the field, bookmarks, chat or page you are in. On Windows and Linux it lists the shortcuts and the
+  page handles the keys; the ☰ menu stays everywhere
 - Not markdown? Shows the page title and the links found on it
 - RSS and Atom feeds render as a list of posts; an item's `<source:markdown>` is used when present
 - `http`, `https` and `file://`; drop a `.md` file on the window to open it. Relative links and images work,

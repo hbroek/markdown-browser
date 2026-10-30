@@ -210,6 +210,9 @@ a { color: var(--link); }
 /* editing the source */
 .source-wrap { max-width: 52rem; margin: 0 auto; }
 .source-wrap .source { max-width: none; }
+/* while editing, the text box takes the whole body */
+.source-wrap.editing { display: flex; flex-direction: column; height: 100%; max-width: none; }
+.source-wrap.editing .source-edit { flex: 1; min-height: 12rem; resize: none; }
 .edit-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
 .edit-bar button { padding: 4px 14px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); cursor: pointer; }
 .edit-bar button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }

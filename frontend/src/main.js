@@ -21,6 +21,8 @@ const $ = (id) => document.getElementById(id);
 const address = $('address');
 const content = $('content');
 const sourceBtn = $('source');
+const sourceIcon = sourceBtn.innerHTML;
+const pencilIcon = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1-4L16.5 4.5a2 2 0 0 1 3 3L8 19z"/><path d="M14.5 6.5l3 3"/></svg>';
 
 // Each tab is {id, page, pending, summary, chat, chatTried, showSource, seq, loading, scroll}. A restored tab
 // that was not selected has only `pending`, its address, until it is first shown.
@@ -39,11 +41,44 @@ function editor() {
         draft: tab.draft ?? null,
         saving: !!tab.saving,
         error: tab.saveError ?? '',
-        onEdit: () => { tab.draft = tab.page.source; tab.saveError = ''; render(); $('content').querySelector('.source-edit')?.focus(); },
-        onInput: (text) => { tab.draft = text; },
+        onEdit: startEdit,
+        onInput: (text) => { tab.draft = text; tab.discardArmed = false; },
         onSave: () => saveEdit(),
-        onCancel: () => { tab.draft = null; tab.saveError = ''; render(); },
+        onCancel: cancelEdit,
     };
+}
+
+/** Starts editing from wherever the page is: the rendered view switches to the source, in a text box with the cursor in it. */
+function startEdit() {
+    const tab = active;
+    if (!tab?.page?.editUrl || tab.draft != null) return;
+    tab.editFromRendered = !tab.showSource; // cancelling or saving goes back to reading
+    tab.showSource = true;
+    tab.draft = tab.page.source;
+    tab.saveError = '';
+    tab.discardArmed = false;
+    render();
+    const box = $('content').querySelector('.source-edit');
+    box?.focus();
+    box?.setSelectionRange(0, 0);
+}
+
+/** Leaves editing. Changes need a second Esc or Cancel so a stray key does not lose them. */
+function cancelEdit() {
+    const tab = active;
+    if (!tab || tab.saving) return;
+    if (tab.draft !== tab.page.source && !tab.discardArmed) {
+        tab.discardArmed = true;
+        tab.saveError = 'You have unsaved changes. Press Esc or Cancel again to discard them.';
+        render();
+        $('content').querySelector('.source-edit')?.focus();
+        return;
+    }
+    tab.draft = null;
+    tab.saveError = '';
+    tab.discardArmed = false;
+    if (tab.editFromRendered) tab.showSource = false;
+    render();
 }
 
 /** Saves the edited source to the server; the tab then shows what is stored. */
@@ -71,6 +106,14 @@ function render() {
     const p = currentPage();
     const showSource = active?.showSource ?? false;
     sourceBtn.disabled = p?.kind !== 'markdown';
+    // On a page the server lets you change, the source button becomes the pencil that starts editing.
+    const editable = p?.kind === 'markdown' && !!p.editUrl;
+    if (sourceBtn.classList.contains('pencil') !== editable) {
+        sourceBtn.classList.toggle('pencil', editable);
+        sourceBtn.innerHTML = editable ? pencilIcon : sourceIcon;
+        sourceBtn.title = editable ? 'Edit this page: the server lets you change it (Ctrl/Cmd+E)' : 'Show source';
+        sourceBtn.setAttribute('aria-label', editable ? 'Edit this page' : 'Show source');
+    }
     $('summarize').disabled = !p?.url || p.kind === 'error' || isSearch(p.url);
     sourceBtn.setAttribute('aria-pressed', String(showSource && !sourceBtn.disabled));
     const body = (
@@ -445,7 +488,7 @@ address.addEventListener('focus', () => address.select());
 $('back').addEventListener('click', () => goActive(Back));
 $('forward').addEventListener('click', () => goActive(Forward));
 $('reload').addEventListener('click', () => goActive(Reload));
-sourceBtn.addEventListener('click', toggleSource);
+sourceBtn.addEventListener('click', () => (sourceBtn.classList.contains('pencil') ? startEdit() : toggleSource()));
 
 // Links in rendered content navigate inside the browser; fragments scroll in place.
 content.addEventListener('click', (e) => {
@@ -508,6 +551,7 @@ const menuActions = {
     'bookmarks-storage': () => bookmarkTool('storage-open'),
     console: toggleConsole,
     source: toggleSource,
+    'edit-page': startEdit,
     ask: toggleAsk,
     summary: summarize,
     ai: menuItems.ai,
@@ -559,7 +603,7 @@ const isMac = navigator.platform.startsWith('Mac');
 function menuOwnsKey(e, mod, key) {
     if (!mod || e.altKey) return false;
     if (e.shiftKey) return key === 'a' || key === 'c';
-    return 'lrujbdtws[]'.includes(key) && key.length === 1;
+    return 'lrujbdtwse[]'.includes(key) && key.length === 1;
 }
 document.addEventListener('keydown', (e) => {
     const mod = isMac ? e.metaKey : e.ctrlKey;
@@ -569,6 +613,7 @@ document.addEventListener('keydown', (e) => {
     if (mod && key === 'l') address.focus();
     else if (mod && key === 'r') { if (currentPage()?.url) goActive(Reload); }
     else if (mod && key === 'u') toggleSource();
+    else if (mod && !e.shiftKey && key === 'e') startEdit();
     else if (mod && e.shiftKey && key === 'a') toggleAsk();
     else if (mod && e.shiftKey && key === 'c') copyMarkdown();
     else if (mod && !e.shiftKey && key === 's') savePage();
@@ -578,6 +623,7 @@ document.addEventListener('keydown', (e) => {
     else if (mod && e.shiftKey && (e.key === '{' || e.key === '[')) stepTab(-1);
     else if (mod && e.shiftKey && (e.key === '}' || e.key === ']')) stepTab(1);
     else if (mod && !e.shiftKey && !e.altKey && /^[1-9]$/.test(e.key)) activate(tabs[e.key === '9' ? tabs.length - 1 : Number(e.key) - 1] ?? active);
+    else if (!isMac && mod && !e.shiftKey && key === 'a') selectAll();
     else if (mod && key === 'j') toggleConsole();
     else if (mod && key === 'b') panelShortcut();
     else if (mod && key === 'd') { if (currentPage()?.url && !isSearch(currentPage().url)) openBookmarkDialog(); }

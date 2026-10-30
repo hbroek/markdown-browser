@@ -2,10 +2,8 @@ package main
 
 import (
 	"embed"
-	"runtime"
 
 	"github.com/wailsapp/wails/v2"
-	"github.com/wailsapp/wails/v2/pkg/menu"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
@@ -24,11 +22,7 @@ func main() {
 	// Create an instance of the app structure
 	app := NewApp()
 
-	// The menu bar is macOS only; other systems use the menu in the toolbar.
-	var bar *menu.Menu
-	if runtime.GOOS == "darwin" {
-		bar = app.macMenu()
-	}
+	bar := app.appMenu()
 
 	// Create application with options
 	err := wails.Run(&options.App{
